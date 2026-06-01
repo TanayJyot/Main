@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>YouTube + ASL Sync</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+
+    #loading-container {
+      display: none;
+      margin-top: 20px;
+    }
+
+    .progress-bar {
+      width: 100%;
+      background-color: #f3f3f3;
+      border-radius: 4px;
+      overflow: hidden;
+      height: 24px;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background-color: #4caf50;
+      text-align: center;
+      color: white;
+      line-height: 24px;
+      transition: width 0.3s ease;
+    }
+  </style>
+</head>
+<body>
+  <h1>Generate ASL Video for YouTube Captions</h1>
+
+  <!-- Input form -->
+  <form id="captionForm" method="POST">
+    <input type="text" name="youtube_url" placeholder="Enter a YouTube URL" required />
+    <button type="submit">Process</button>
+  </form>
+
+  <!-- Loading bar container -->
+  <div id="loading-container">
+    <p>Processing captions and generating ASL videos...</p>
+    <div class="progress-bar">
+      <div class="progress-bar-fill" id="progress-bar-fill">0%</div>
+    </div>
+  </div>
+
+  {% if youtube_url %}
+    <!-- YouTube video player -->
+    <h2>YouTube Video</h2>
+    <div id="player"></div>
+
+    <!-- Final merged ASL video -->
+    <h2>ASL Animation</h2>
+    <video id="asl-video" width="480" height="360" controls muted>
+      <source src="{{ url_for('static', filename=final_asl_video) }}" type="video/mp4" />
+      Your browser does not support the video tag.
+    </video>
+  {% endif %}
+
+  <script>
+    // Progress logic
+    let progress = 0;
+    let interval = null;
+    let hasSubmitted = false;
+
+    // Start loading bar animation
+    function startLoadingBar() {
+      const fill = document.getElementById("progress-bar-fill");
+      progress = 0;
+      interval = setInterval(() => {
+        if (progress < 80) {
+          progress += Math.random() * 3;
+          fill.style.width = Math.min(progress, 80) + "%";
+          fill.innerText = Math.floor(Math.min(progress, 80)) + "%";
+        }
+      }, 300);
+    }
+
+    // Complete loading to 100% and hold briefly
+    function finishLoadingBar() {
+      const fill = document.getElementById("progress-bar-fill");
+      clearInterval(interval);
+      fill.style.width = "100%";
+      fill.innerText = "100%";
+      setTimeout(() => {
+        document.getElementById("loading-container").style.display = "none";
+      }, 500);
+    }
+
+    // Show loading when form submitted
+    document.getElementById("captionForm").addEventListener("submit", function () {
+      hasSubmitted = true;
+      document.getElementById("loading-container").style.display = "block";
+      startLoadingBar();
+    });
+
+    // When page reloads after POST response
+    window.addEventListener("DOMContentLoaded", () => {
+      if (hasSubmitted || "{{ youtube_url|default('') }}" !== "") {
+        finishLoadingBar();
+      }
+    });
+
+    // YouTube API setup
+    var tag = document.createElement("script");
+    tag.src = "https://www.youtube.com/iframe_api";
+    var firstScriptTag = document.getElementsByTagName("script")[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+    var player;
+    function onYouTubeIframeAPIReady() {
+      player = new YT.Player("player", {
+        height: "360",
+        width: "640",
+        videoId: "{{ youtube_url | replace('https://www.youtube.com/watch?v=', '') }}",
+        events: {
+          onStateChange: onPlayerStateChange,
+        },
+      });
+    }
+
+    // Sync ASL video with YouTube
+    function onPlayerStateChange(event) {
+      const aslVideo = document.getElementById("asl-video");
+      if (event.data === YT.PlayerState.PLAYING) {
+        aslVideo.play();
+      } else if (event.data === YT.PlayerState.PAUSED) {
+        aslVideo.pause();
+      }
+    }
+
+    // Adjust ASL video time if too far from YouTube time
+    setInterval(() => {
+      const aslVideo = document.getElementById("asl-video");
+      if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+        const ytTime = player.getCurrentTime();
+        const aslTime = aslVideo.currentTime;
+        if (Math.abs(ytTime - aslTime) > 0.3) {
+          aslVideo.currentTime = ytTime;
+        }
+      }
+    }, 1000);
+  </script>
+</body>
+</html>

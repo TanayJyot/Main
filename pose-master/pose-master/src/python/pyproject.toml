@@ -1,0 +1,75 @@
+[project]
+name = "pose_format"
+description = "Library for viewing, augmenting, and handling .pose files"
+version = "v0.9.0"
+keywords = ["Pose Files", "Pose Interpolation", "Pose Augmentation"]
+authors = [
+    { name = "Amit Moryossef", email = "amitmoryossef@gmail.com" },
+    { name = "Mathias Müller", email = "anon1@ymous.com" },
+    { name = "Rebecka Fahrni", email = "anon2@ymous.com" }
+]
+dependencies = [
+    "numpy",
+    "scipy",
+    "tqdm"
+]
+requires-python = ">= 3.8"
+
+[project.optional-dependencies]
+dev = [
+    "pylint",
+    "pytest",
+    "opencv-python==4.5.5.64",
+    "vidgear",
+    "mediapipe",
+    "torch",
+    "tensorflow",
+    "matplotlib"
+]
+
+[tool.setuptools]
+packages = [
+    "pose_format",
+    "pose_format.bin",
+    "pose_format.utils",
+    "pose_format.testing",
+    "pose_format.numpy",
+    "pose_format.numpy.representation",
+    "pose_format.torch",
+    "pose_format.torch.masked",
+    "pose_format.torch.representation",
+    "pose_format.tensorflow",
+    "pose_format.tensorflow.masked",
+    "pose_format.tensorflow.representation"
+]
+
+
+[tool.pytest.ini_options]
+addopts = "-v"
+filterwarnings = [
+    "ignore::DeprecationWarning:flatbuffers"
+]
+testpaths = [
+    "pose_format",
+    "tests"
+]
+
+[tool.yapf]
+based_on_style = "google"
+column_limit = 120
+
+[tool.pylint.format]
+max-line-length = 120
+disable = [
+    "C0114", # Missing module docstring
+    "C0115", # Missing class docstring
+    "C0116", # Missing function or method docstring
+    "W0511", # TODO
+    "W1203", # use lazy % formatting in logging functions
+]
+
+[project.scripts]
+pose_info = "pose_format.bin.pose_info:main"
+video_to_pose = "pose_format.bin.pose_estimation:main"
+videos_to_poses = "pose_format.bin.directory:main"
+visualize_pose = "pose_format.bin.pose_visualizer:main"
