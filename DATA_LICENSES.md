@@ -173,14 +173,32 @@ MediaPipe is Apache-2.0, Flask/moviepy/scipy are BSD/MIT.
 
 The fix here is surgical, because only half the training mix is contaminated.
 
-1. **Rebuild the appearance corpus from SHHQ's own upstream sources
-   (recommended).** SHHQ was itself crawled from Flickr, Pixabay and Pexels
-   under CC0, the Pixabay Licence and the Pexels Licence — all of which permit
-   commercial use. The restriction is imposed by Shanghai AI Lab's redistribution
-   agreement, not by the underlying images. Collecting an equivalent full-body
-   human set directly from those sources, under their own terms, gets you the
-   same kind of data with a clean chain of title. Budget for the segmentation
-   masks, which SHHQ provides and you would have to generate.
+1. **Rebuild the appearance corpus from SHHQ's upstream sources — but not all
+   of them.** SHHQ was crawled from Flickr, Pixabay and Pexels, and the
+   restriction is imposed by Shanghai AI Lab's redistribution agreement rather
+   than by the underlying images. Collecting an equivalent set directly gives
+   you a clean chain of title. The platforms are **not** interchangeable for
+   this purpose, though:
+   - **Pixabay** — explicitly permits AI/ML training, with a contributor
+     opt-out you must honour. The cleanest of the three.
+   - **Flickr**, filtered to CC0 / CC BY — fine, licence is per image, so keep
+     the per-image record.
+   - **Unsplash** — only via the **Unsplash Lite Dataset**, whose terms grant
+     ML training for internal business purposes. The general Unsplash Licence
+     does not, and it bars compiling photos into a competing service;
+     Unsplash+ forbids AI training outright.
+   - **Pexels — do not use.** Its Terms prohibit scraping and data mining
+     "including for machine learning purposes." Crawling it would trade one
+     licence problem for another.
+
+   Budget for segmentation masks, which SHHQ ships and you would generate
+   yourself: BiRefNet (MIT) or SAM 1 / SAM 2 (Apache-2.0) both work. SAM 3 is
+   under Meta's custom SAM Licence — check it before using.
+
+   One risk this option carries and BIU-MG does not: stock licences convey
+   image rights, **not model releases**. A generative model trained on
+   identifiable people can reproduce their likeness, which is a
+   right-of-publicity exposure independent of the image licence.
 2. **Train on BIU-MG alone.** It is already explicitly cleared for commercial
    use. You lose SHHQ's appearance diversity, but for this product that is
    arguably the right trade: a single consistent signer identity is what you
@@ -255,3 +273,88 @@ the YouTube ToS, so it does not give you a commercially redistributable lexicon.
 - **Record provenance going forward.** Add a `DATA_SOURCES.md` entry for every
   corpus, with source URL, licence, download date, and commercial-use verdict,
   so this audit does not have to be reconstructed from import lists again.
+
+## 6. Migration plan: replacing SHHQ without losing quality
+
+The goal is to end up with a renderer that scores the same as today's on data
+you own. "The same" has to be measured, so the first phase is instrumentation,
+not data collection.
+
+### Phase 0 — Lock the baseline (before changing anything)
+
+1. **Pin the current run.** Record the `pose-to-video` commit, the exact
+   `train.sh` config (`runwayml/stable-diffusion-v1-5` +
+   `lllyasviel/sd-controlnet-openpose`, 512×512, lr 1e-5, 20 epochs, batch 4),
+   seeds, the environment lockfile, and a dataset manifest: which SHHQ images,
+   which BIU-MG frames, and the train/val split.
+2. **Build the eval harness now, on data you own** — held-out BIU-MG frames
+   plus a fixed set of glosses from the lexicon:
+   - **Pose fidelity:** re-run MediaPipe on each generated frame and compare to
+     the conditioning skeleton (PCK / MPJPE), reported **separately for the
+     hands**. Hand fidelity is what ASL legibility rests on and what diffusion
+     models fail at; a whole-body average will hide it.
+   - **Image quality:** FID/KID against held-out real signer frames;
+     LPIPS/PSNR/SSIM on paired reconstructions.
+   - **Temporal:** frame-to-frame warping error, to catch flicker that
+     per-frame metrics miss entirely.
+   - **Human:** a fixed panel of ~50 rendered signs rated for legibility by an
+     ASL-fluent reviewer, ideally Deaf. This is the metric that decides the
+     product; the others are proxies.
+3. **Record baseline numbers.** Without these, "replicate our previous results"
+   is not a checkable claim.
+4. **Quarantine SHHQ.** Keep it on a research-only machine for comparison — that
+   use is within its agreement — but never in product artefacts and never
+   redistributed. Tag every SHHQ-derived checkpoint as unshippable.
+
+### Phase 1 — Find out what SHHQ was actually buying (cheap, high information)
+
+5. **Retrain on BIU-MG alone**, identical config and seed, and score it on the
+   same harness. The gap to baseline is your replacement budget.
+6. **If the gap is negligible, stop here.** SHHQ is 40K static images of people
+   *not signing*, and the product renders one signer. The appearance diversity
+   may be contributing less than its share of the training set suggests. This
+   step costs one training run and can end the whole project.
+
+### Phase 2 — Build a replacement corpus, if Phase 1 says you need one
+
+7. **Preferred: record more signers.** BIU-MG is permissive because it was
+   recorded with consent. Five to ten signers under written commercial releases
+   gives you diversity *in domain* — people actually signing — rather than
+   static standers, and it is likely to beat the SHHQ baseline rather than
+   merely match it. It also removes the model-release exposure in §4a.
+8. **Otherwise, collect a generic human corpus** from Pixabay / CC-licensed
+   Flickr / the Unsplash Lite Dataset, per the constraints in §4a. Pexels is
+   excluded.
+9. **Match SHHQ's distribution** so the swap stays controlled: single person,
+   full body visible, roughly frontal, 1024×512 crop, uncluttered background.
+   Filter automatically — MediaPipe for full-body landmark visibility and a
+   single subject, plus a frontality check on shoulder and hip keypoints.
+10. **Regenerate the masks** with BiRefNet or SAM, then reuse pose-to-video's
+    green-screen compositing. Write `clean_to_images.py` with the same CLI and
+    the same `frames.zip` output contract as `shhq_to_images.py`, so `train.sh`
+    does not change and the only variable is the data.
+11. **Log provenance per image:** source URL, licence, retrieval date,
+    contributor opt-out status.
+
+### Phase 3 — Retrain and match
+
+12. **Retrain from scratch** — SD-1.5 + sd-controlnet-openpose, never from
+    `sign/sd-controlnet-mediapipe`, which would carry the SHHQ derivation
+    forward. Same config, same seed.
+13. **Score on the frozen harness.** If you fall short, iterate on the
+    **corpus** — size, filter strictness, clean:BIU-MG ratio — with
+    hyperparameters held fixed. Tuning both at once means you can no longer
+    attribute the difference to the data swap.
+14. **Ship when hand-PCK and the human legibility rating match baseline within
+    tolerance.** FID is secondary; a lower FID with worse hands is a regression
+    for this product.
+
+### Phase 4 — Close out
+
+15. Purge or quarantine SHHQ-derived weights and renders from everything
+    product-adjacent — demo videos, decks, HF repos, teammates' disks.
+16. **Note the remaining base-model question.** SD-1.5 ships under CreativeML
+    OpenRAIL-M, which permits commercial use subject to use restrictions, but it
+    was itself trained on LAION. The "derived weights" reasoning being applied
+    to SHHQ is contested there rather than settled. That is a separate decision
+    and worth making consciously rather than by default.
