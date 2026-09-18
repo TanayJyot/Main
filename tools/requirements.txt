@@ -6,7 +6,10 @@ opencv-python-headless>=4.8
 Pillow>=10.0
 
 # Pose fidelity scoring and corpus filtering.
-mediapipe>=0.10.9
+# MediaPipe removed the Solutions API that pose-format and this toolkit both
+# need. The project already pins 0.10.21 for the same reason.
+# Verified: 0.10.21 has it, 0.10.30 does not. 1.x dropped the module entirely.
+mediapipe>=0.10.9,<0.10.30
 pose-format>=0.9.0
 
 # Mask generation. rembg pulls onnxruntime; swap for segment-anything if you

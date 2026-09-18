@@ -21,10 +21,14 @@ import argparse
 import json
 import os
 import shutil
+import sys
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import mp_compat  # noqa: E402
 
 # MediaPipe Pose landmark indices we care about.
 NOSE = 0
@@ -162,8 +166,6 @@ def main() -> None:
     parser.add_argument("--min_body_fraction", type=float, default=Thresholds.min_body_fraction)
     args = parser.parse_args()
 
-    import mediapipe as mp
-
     thresholds = Thresholds(min_visibility=args.min_visibility,
                             min_body_fraction=args.min_body_fraction)
     os.makedirs(args.output_dir, exist_ok=True)
@@ -173,8 +175,7 @@ def main() -> None:
 
     # static_image_mode + model_complexity=2 is slow but this runs once, and a
     # missed landmark here costs a bad training image forever.
-    with mp.solutions.pose.Pose(static_image_mode=True, model_complexity=2,
-                                min_detection_confidence=0.5) as pose_model:
+    with mp_compat.pose_landmarker() as pose_model:
         for filename in sorted(os.listdir(args.input_dir)):
             path = os.path.join(args.input_dir, filename)
             if not os.path.isfile(path):

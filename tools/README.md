@@ -21,7 +21,17 @@ tools/
   tests/test_toolkit.py      runs without mediapipe/torch/GPU
 ```
 
-Install: `pip install -r requirements.txt`. Test: `python tools/tests/test_toolkit.py`.
+Install: `pip install -r requirements.txt`. Test: `python tools/tests/test_toolkit.py`,
+then `python tools/smoke_test.py` to exercise the pipeline end to end on
+synthetic data.
+
+**MediaPipe must be older than 0.10.30.** The Solutions API that `pose-format`
+and this toolkit both use was removed — verified by hand: 0.10.21 has it,
+0.10.30 does not, and 1.x has no `mediapipe.solutions` module at all. A bare
+`pip install mediapipe` on a new machine gets 1.x and everything that touches
+pose estimation dies with an AttributeError. `tools/preflight.py` checks this
+before you spend GPU time on it; the project's existing pin of 0.10.21 in
+`pose-master/pose-master/requirements.txt` is correct.
 
 ## Phase 0 — lock the baseline
 

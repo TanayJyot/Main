@@ -23,6 +23,7 @@ sys.path.insert(0, os.path.join(HERE, "..", "eval"))
 import clean_to_images  # noqa: E402
 import filter_candidates as fc  # noqa: E402
 import metrics  # noqa: E402
+import pose_fidelity as pf  # noqa: E402
 from provenance import LicenceError, Manifest, Record, check_optout, now_iso  # noqa: E402
 
 
@@ -208,6 +209,72 @@ def test_hand_scale_is_independent_of_body_scale():
     by_hand = metrics.pck(moved[:, :2], hand[:, :2], metrics.hand_scale(hand), threshold=0.2)
     by_body = metrics.pck(moved[:, :2], hand[:, :2], metrics.shoulder_scale(pose), threshold=0.2)
     assert by_hand < by_body
+
+
+# --------------------------------------------------------------------------
+# pose_fidelity: name-based landmark alignment
+#
+# Regression tests for a real failure. The repo's own concatenate.py sets
+# is_reduce_holistic = True, which trims POSE_LANDMARKS from MediaPipe's 33
+# points to 8. Comparing that positionally against a fresh 33-point MediaPipe
+# result compares a shoulder to an eyebrow, or skips silently and reports a
+# confident NaN.
+
+REDUCED_POSE_NAMES = ["LEFT_SHOULDER", "RIGHT_SHOULDER", "LEFT_ELBOW", "RIGHT_ELBOW",
+                      "LEFT_WRIST", "RIGHT_WRIST", "LEFT_HIP", "RIGHT_HIP"]
+# MediaPipe's full pose layout, abbreviated to the positions that matter here.
+FULL_POSE_NAMES = (["NOSE"] + [f"FILLER_{i}" for i in range(10)] +
+                   ["LEFT_SHOULDER", "RIGHT_SHOULDER", "LEFT_ELBOW", "RIGHT_ELBOW",
+                    "LEFT_WRIST", "RIGHT_WRIST"] + [f"FILLER_B_{i}" for i in range(6)] +
+                   ["LEFT_HIP", "RIGHT_HIP"] + [f"FILLER_C_{i}" for i in range(8)])
+
+
+def test_reduced_pose_aligns_against_full_mediapipe_layout():
+    assert len(FULL_POSE_NAMES) == 33, "fixture should mirror MediaPipe's 33-point layout"
+
+    target = np.arange(len(REDUCED_POSE_NAMES) * 2, dtype=float).reshape(-1, 2)
+    predicted = np.arange(33 * 2, dtype=float).reshape(-1, 2)
+
+    target_sel, predicted_sel, shared = pf.align_by_name(
+        target, REDUCED_POSE_NAMES, predicted, FULL_POSE_NAMES)
+
+    assert shared == REDUCED_POSE_NAMES
+    assert target_sel.shape == predicted_sel.shape == (8, 2)
+    # LEFT_SHOULDER is row 0 of the target but row 11 of MediaPipe's output.
+    assert np.array_equal(predicted_sel[0], predicted[11])
+    assert np.array_equal(predicted_sel[1], predicted[12])
+    assert np.array_equal(target_sel[0], target[0])
+
+
+def test_alignment_reports_no_overlap_rather_than_guessing():
+    target = np.zeros((3, 2))
+    predicted = np.zeros((33, 2))
+    _, _, shared = pf.align_by_name(target, ["A", "B", "C"], predicted, FULL_POSE_NAMES)
+    assert shared == [], "unrelated point names must not be matched positionally"
+
+
+def test_named_scale_survives_a_reduced_component():
+    """The bug that started this: index 11 is not the left shoulder in an
+    8-point reduced pose, and indexing it raised IndexError."""
+    landmarks = np.zeros((8, 2))
+    landmarks[0] = [10.0, 50.0]   # LEFT_SHOULDER
+    landmarks[1] = [90.0, 50.0]   # RIGHT_SHOULDER
+    scale = pf.named_scale(landmarks, REDUCED_POSE_NAMES, pf.POSE_COMPONENT)
+    assert abs(scale - 80.0) < 1e-9
+
+    # The old positional call is now bounds-safe rather than fatal.
+    assert metrics.shoulder_scale(landmarks) == 0.0
+
+
+def test_named_scale_for_hands_uses_wrist_to_knuckle():
+    names = ["WRIST", "THUMB_CMC", "MIDDLE_FINGER_MCP"]
+    landmarks = np.array([[0.0, 0.0], [5.0, 5.0], [0.0, 12.0]])
+    assert abs(pf.named_scale(landmarks, names, pf.LEFT_HAND_COMPONENT) - 12.0) < 1e-9
+
+
+def test_named_scale_returns_zero_when_reference_points_are_absent():
+    names = ["LEFT_ELBOW", "RIGHT_ELBOW"]
+    assert pf.named_scale(np.ones((2, 2)), names, pf.POSE_COMPONENT) == 0.0
 
 
 def test_ssim_and_psnr_on_identical_images():

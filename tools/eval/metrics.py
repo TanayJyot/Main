@@ -58,28 +58,41 @@ def pck(predicted: np.ndarray, target: np.ndarray, scale: float, threshold: floa
     return float((distances[valid] <= threshold * scale).mean())
 
 
-def shoulder_scale(pose_landmarks: np.ndarray) -> float:
+def scale_between(landmarks: np.ndarray, index_a: int, index_b: int) -> float:
+    """Median distance between two landmarks across all frames.
+
+    Indices are passed in rather than hardcoded because a .pose file need not
+    carry MediaPipe's full landmark layout. `reduce_holistic` — which this
+    project's own concatenate.py enables — trims POSE_LANDMARKS from 33 points
+    to 8, so position 11 is not necessarily the left shoulder. Callers resolve
+    the index by point name; see pose_fidelity.align_by_name.
+    """
+    landmarks = np.asarray(landmarks, float)
+    if landmarks.ndim < 2:
+        return 0.0
+    point_count = landmarks.shape[-2]
+    if not (0 <= index_a < point_count and 0 <= index_b < point_count):
+        return 0.0
+
+    distances = np.linalg.norm(landmarks[..., index_a, :2] - landmarks[..., index_b, :2], axis=-1)
+    distances = distances[np.isfinite(distances) & (distances > 0)]
+    return float(np.median(distances)) if distances.size else 0.0
+
+
+def shoulder_scale(pose_landmarks: np.ndarray, left: int = POSE_L_SHOULDER,
+                   right: int = POSE_R_SHOULDER) -> float:
     """Shoulder width — the natural normaliser for body-level error."""
-    pose_landmarks = np.asarray(pose_landmarks, float)
-    left = pose_landmarks[..., POSE_L_SHOULDER, :2]
-    right = pose_landmarks[..., POSE_R_SHOULDER, :2]
-    widths = np.linalg.norm(left - right, axis=-1)
-    widths = widths[np.isfinite(widths) & (widths > 0)]
-    return float(np.median(widths)) if widths.size else 0.0
+    return scale_between(pose_landmarks, left, right)
 
 
-def hand_scale(hand_landmarks: np.ndarray) -> float:
+def hand_scale(hand_landmarks: np.ndarray, wrist: int = HAND_WRIST,
+               knuckle: int = HAND_MIDDLE_MCP) -> float:
     """Wrist to middle-finger MCP — normalises hand error by hand size.
 
     Without this, a hand error of a few pixels looks negligible against a
     shoulder-width normaliser even when the handshape is destroyed.
     """
-    hand_landmarks = np.asarray(hand_landmarks, float)
-    wrist = hand_landmarks[..., HAND_WRIST, :2]
-    knuckle = hand_landmarks[..., HAND_MIDDLE_MCP, :2]
-    lengths = np.linalg.norm(wrist - knuckle, axis=-1)
-    lengths = lengths[np.isfinite(lengths) & (lengths > 0)]
-    return float(np.median(lengths)) if lengths.size else 0.0
+    return scale_between(hand_landmarks, wrist, knuckle)
 
 
 def psnr(a: np.ndarray, b: np.ndarray, data_range: float = 255.0) -> float:
