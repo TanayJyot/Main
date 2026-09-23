@@ -1,0 +1,16 @@
+# Environment: text-to-gloss (English -> ASL gloss, text-to-gloss/start.py)
+#
+# The previous file was a CUDA-flavoured pip freeze that listed neither
+# stanfordnlp nor torch -- the two things start.py actually needs -- and pinned
+# torch 1.9.0 alongside triton 3.1.0, which cannot be installed together.
+
+stanfordnlp==0.2.0
+
+# stanfordnlp needs torch. CPU is fine: start.py passes use_gpu=False, and the
+# pipeline runs once per caption on short sentences.
+torch>=1.13,<3
+
+# Only needed for start.py's getSpeech(), which nothing in the ASLytics
+# pipeline calls. It is imported lazily, so leave this commented out unless you
+# want microphone input.
+# azure-cognitiveservices-speech

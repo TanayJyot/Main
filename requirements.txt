@@ -1,0 +1,12 @@
+# Environment: the Flask layer (app.py, server.py, merge_asl_clips.py).
+#
+# The gloss and pose steps run in their own conda environments -- see
+# install.sh -- because they need conflicting versions of torch and numpy.
+
+flask>=3.0
+flask-cors>=4.0
+youtube-transcript-api>=0.6
+
+# MoviePy 2.x renamed the clip builders (set_duration -> with_duration).
+# merge_asl_clips.py handles both, so 1.x works too if you already have it.
+moviepy>=2.0

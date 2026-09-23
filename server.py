@@ -3,6 +3,8 @@ from flask_cors import CORS
 import os
 import subprocess
 import json
+
+REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
 from youtube_transcript_api import YouTubeTranscriptApi
 from urllib.parse import urlparse, parse_qs
 
@@ -36,10 +38,13 @@ def generate_video_from_text(text: str, output_name: str):
     """
     Call your main.sh script, passing the text, and output to a specific filename.
     """
+    script = os.path.join(REPO_ROOT, "main.sh")
     try:
-        command = f"/bin/bash /home/ellie/GitHub/ASLytics-RBC/main.sh \"{text}\" \"{output_name}\""
-        print(f"Running command: {command}")
-        subprocess.run(command, shell=True, check=True)
+        # A list argument with shell=False: captions are untrusted input from
+        # YouTube, and interpolating them into a shell string let any caption
+        # containing a quote or a backtick run arbitrary commands.
+        print(f"Running: {script} {text!r} {output_name!r}")
+        subprocess.run(["/bin/bash", script, text, output_name], check=True)
     except subprocess.CalledProcessError as e:
         print(f"Error running main.sh: {e}")
 

@@ -58,7 +58,70 @@ Here is an example of ASLytics in action, demonstrating real-time ASL animations
 
 ## **How to Use**
 
-1. Clone this repository to your local machine.
-2. Ensure you have Python and dependencies installed.
-3. Run the frontend application using the provided instructions.
-4. Input a YouTube URL to see real-time ASL animations synchronized with captions.
+### Prerequisites
+
+- **conda** — the gloss and pose steps need incompatible versions of torch and
+  numpy, so they live in separate environments.
+- **ffmpeg** — `apt install ffmpeg` or `brew install ffmpeg`.
+
+### 1. Install
+
+```bash
+bash install.sh
+```
+
+Creates `text-to-gloss` (English → gloss) and `gloss-to-skeleton`
+(gloss → pose → video), downloads the StanfordNLP English models, and installs
+the Flask layer into your current environment.
+
+### 2. Supply the sign lexicon
+
+**The pipeline cannot run without this, and the files are not in this
+repository.** `gloss_to_pose()` needs one `.pose` file per gloss, named
+`<gloss>.pose`.
+
+Put them in `lexicon/`, or point at them:
+
+```bash
+export ASLYTICS_LEXICON_DIR=/path/to/your/pose/files
+```
+
+To generate them from sign videos, use `pose-format`'s estimator — and read
+`DATA_LICENSES.md` first, because which corpus the videos come from determines
+whether the result can be used commercially:
+
+```bash
+videos_to_poses --format mediapipe --directory /path/to/sign/videos
+```
+
+> If you have an existing checkout, the lexicon may be in a directory named
+> `.gitignore/generated_pose`. That still works, but the name collides with the
+> gitignore *file* a repository normally has at its root, so move it to
+> `lexicon/` when convenient.
+
+### 3. Run
+
+```bash
+bash old_main.sh                        # smoke test: renders one fixed sentence
+python app.py                           # then open http://127.0.0.1:5000
+```
+
+Or use the Chrome extension: run `python server.py`, then load `extension/`
+unpacked via `chrome://extensions` → Developer mode → Load unpacked.
+
+### Configuration
+
+| Variable | Default | What it does |
+|---|---|---|
+| `ASLYTICS_LEXICON_DIR` | `lexicon/` | Where the per-gloss `.pose` files live |
+| `ASLYTICS_WORK_DIR` | `.work/` | Scratch space for intermediate poses and video |
+| `ASLYTICS_VIDEO_DIR` | `videos/` | Rendered clips |
+| `ASLYTICS_GLOSS_ENV` | `text-to-gloss` | conda env for the gloss step |
+| `ASLYTICS_POSE_ENV` | `gloss-to-skeleton` | conda env for the pose step |
+
+### Licensing
+
+`DATA_LICENSES.md` audits every dataset and pretrained model this project
+touches. Read it before any commercial use: one dataset behind the
+`pose-to-video` renderer models is non-commercial, the sign lexicon's
+provenance is unrecorded, and `text-to-gloss/start.py` is GPL-3.0.
