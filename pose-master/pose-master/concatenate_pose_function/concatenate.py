@@ -8,9 +8,32 @@ from smoothing import smooth_concatenate_poses
 
 import os
 from pose_format import Pose
-from io import BytesIO  
+from io import BytesIO
 
 from typing import List
+
+
+def lexicon_dir() -> str:
+    """Where the per-gloss .pose files live.
+
+    Was hardcoded to one developer's home directory, so this module only worked
+    on that machine. Resolution order:
+
+      1. $ASLYTICS_LEXICON_DIR
+      2. <repo>/.gitignore/generated_pose  (legacy; kept so existing checkouts
+         keep working, but the directory name collides with the gitignore file
+         a repository normally has at its root — move it when convenient)
+      3. <repo>/lexicon
+
+    The lexicon is not in the repository. See DATA_LICENSES.md section 2b.
+    """
+    override = os.environ.get("ASLYTICS_LEXICON_DIR")
+    if override:
+        return os.path.expanduser(override)
+
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
+    legacy = os.path.join(repo_root, ".gitignore", "generated_pose")
+    return legacy if os.path.isdir(legacy) else os.path.join(repo_root, "lexicon")
 
 class ConcatenationSettings:
     is_reduce_holistic = True
@@ -118,10 +141,28 @@ def save_pose(pose: Pose, filepath: str):
 
 # how it will be used with ['word1', 'word2']
 def gloss_to_pose(list_of_gloss: List[str]) -> List:
+    """Load one .pose file per gloss, in order.
+
+    Reports every missing gloss at once. Failing on the first one means
+    rediscovering the next gap on the next run, which is a slow way to find out
+    the lexicon does not cover your vocabulary.
+    """
+    directory = lexicon_dir()
     list_of_pose = []
+    missing = []
+
     for vocab in list_of_gloss:
-        pose_data = load_pose(f'/home/ellie/GitHub/ASLytics-RBC/.gitignore/generated_pose/{vocab}.pose')
-        list_of_pose.append(pose_data)
+        path = os.path.join(directory, f"{vocab}.pose")
+        if not os.path.exists(path):
+            missing.append(vocab)
+            continue
+        list_of_pose.append(load_pose(path))
+
+    if missing:
+        raise FileNotFoundError(
+            f"no .pose file for {missing} in {directory}. "
+            f"Set ASLYTICS_LEXICON_DIR if the lexicon lives elsewhere."
+        )
     return list_of_pose
 
 # Concatenate
@@ -130,5 +171,5 @@ def gloss_to_pose(list_of_gloss: List[str]) -> List:
 # # result_pose = concatenate_poses([pose1, pose2])
 
 # # Print or save result
-# save_pose(result_pose, '/home/ellie/GitHub/ASLytics-RBC/.gitignore/generated_pose/combined_output2.pose')
+# save_pose(result_pose, os.path.join(lexicon_dir(), 'combined_output2.pose'))
 # print("Result:", result_pose)

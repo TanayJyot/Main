@@ -36,29 +36,54 @@
 # """)
 
 # Imports
-import azure.cognitiveservices.speech as speechsdk
 import os
 import subprocess
 import stanfordnlp
 # import stanza
 from operator import itemgetter, attrgetter, methodcaller
 
-# Download models on first run
-# stanfordnlp.download('en')   # This downloads the English models for the neural pipeline
-# stanza.download('en')
-# Sets up a neural pipeline in English
-nlp = stanfordnlp.Pipeline(processors='tokenize,mwt,pos,lemma,depparse', treebank='en_ewt', use_gpu=False, pos_batch_size=3000) # Build the pipeline, specify part-of-speech processor's batch size
-# nlp = stanza.Pipeline('en')
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+
+# The pipeline is built on first use rather than at import time. Building it
+# loads several hundred MB of models, which made importing this module slow and
+# made it fail outright on a machine where the models were never downloaded --
+# including when the caller only wanted a helper function from here.
+_nlp = None
+
+
+def get_nlp():
+  """The English neural pipeline, built once and reused.
+
+  Trained on the UD English EWT treebank (CC BY-SA 4.0); see DATA_LICENSES.md.
+  """
+  global _nlp
+  if _nlp is not None:
+    return _nlp
+
+  try:
+    # processors: tokenize, multi-word tokens, POS, lemma, dependency parse.
+    # pos_batch_size is a speed/memory tradeoff, not an accuracy one.
+    _nlp = stanfordnlp.Pipeline(processors='tokenize,mwt,pos,lemma,depparse',
+                                treebank='en_ewt', use_gpu=False, pos_batch_size=3000)
+  except Exception as error:
+    raise RuntimeError(
+      "Could not build the StanfordNLP pipeline: %s\n"
+      "The English models are probably not downloaded. Run:\n"
+      "    python -c \"import stanfordnlp; stanfordnlp.download('en')\"" % error
+    )
+  return _nlp
 
 def getSpeech():
-  # Creates an instance of a speech config with specified subscription key and service region.
+  # Imported here rather than at module scope: this function is the only thing
+  # that needs the Azure SDK, and nothing in the ASLytics pipeline calls it.
+  import azure.cognitiveservices.speech as speechsdk
+
   # Replace with your own subscription key and service region (e.g., "westus").
-  with open('keys/speech_key.txt','r') as f_open:
-      speech_key = f_open.read()
-      f_open.close()
-  with open('keys/speech_region.txt','r') as f_open:
-      service_region = f_open.read()
-      f_open.close()
+  keys_dir = os.path.join(REPO_ROOT, 'keys')
+  with open(os.path.join(keys_dir, 'speech_key.txt'), 'r') as f_open:
+      speech_key = f_open.read().strip()
+  with open(os.path.join(keys_dir, 'speech_region.txt'), 'r') as f_open:
+      service_region = f_open.read().strip()
 
   # Creates an instance of a speech config with specified subscription key and service region.
   # Replace with your own subscription key and service region (e.g., "westus").
@@ -94,7 +119,7 @@ def getSpeech():
 
 def parse(text):
   # Process text input
-  doc = nlp(text) # Run the pipeline on text input
+  doc = get_nlp()(text) # Run the pipeline on text input
 
   # print ("""
   # ┌─┐┌─┐┬─┐┌─┐┌─┐┬─┐┌┬┐  ┌┬┐┬─┐┌─┐┌┐┌┌─┐┬  ┌─┐┌┬┐┬┌─┐┌┐┌
@@ -375,4 +400,6 @@ def main():
         return res
         
 
-main()
+
+if __name__ == "__main__":
+  main()

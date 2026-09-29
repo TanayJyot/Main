@@ -5,9 +5,11 @@ import os
 from utils.youtube_caption_utils import extract_video_id, get_youtube_captions_with_timing
 from merge_asl_clips import merge_asl_video_clips
 
+REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
+
 app = Flask(__name__)
 CORS(app)
-app.config['UPLOAD_FOLDER'] = 'static/videos'
+app.config['UPLOAD_FOLDER'] = os.path.join(REPO_ROOT, 'static', 'videos')
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -40,7 +42,8 @@ def index():
             output_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
 
             result = subprocess.run(
-                ["bash", "utils/generate_asl_video.sh", sentence, output_path],
+                ["bash", os.path.join(REPO_ROOT, "utils", "generate_asl_video.sh"),
+                 sentence, output_path],
                 capture_output=True,
                 text=True
             )
@@ -49,7 +52,10 @@ def index():
             print("STDERR:", result.stderr)
 
             if os.path.exists(output_path):
-                generated_files.append(filename)
+                # Carry the caption's own timing with its file. Rebuilding the
+                # pairing later from list positions breaks as soon as one
+                # caption is skipped above.
+                generated_files.append(dict(cap, file=filename))
             else:
                 print(f"Failed to generate video for sentence: {sentence}")
 
@@ -63,8 +69,8 @@ def index():
         # combine clips
         merge_asl_video_clips(
             video_dir=app.config['UPLOAD_FOLDER'],
-            captions_with_time=captions[:len(generated_files)],
-            output_path="static/final_asl_output.mp4",
+            captions_with_time=generated_files,
+            output_path=os.path.join(REPO_ROOT, "static", "final_asl_output.mp4"),
             total_duration=total_duration
         )
 
