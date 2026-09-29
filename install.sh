@@ -1,51 +1,64 @@
 #!/bin/bash
-# Create the three environments ASLytics needs.
+# Set up ASLytics.
 #
-#     bash install.sh
+#     bash install.sh            # a .venv in the repo (default; works on Windows)
+#     bash install.sh --conda    # separate conda environments per half
 #
-# Three, because the gloss step and the pose step need incompatible versions of
-# torch and numpy, and the Flask layer needs neither.
-#
-# `conda activate` does not work in a non-interactive script without shell
-# hooks, so this uses `conda run` throughout. The previous version called
-# `conda activate` and pointed pip at two files that do not exist
-# (text-to-gloss/requirements.txt when the file was requirement.txt, and
-# pose-master/pose-master.txt), so every install silently did nothing.
+# The default is one virtualenv. The gloss half (stanfordnlp) and the pose
+# half (pose-format) install side by side on current torch, so the separate
+# conda environments this script used to require are optional, not needed.
+# On Windows run this from Git Bash, or run the three commands under
+# "Without bash" in README.md from PowerShell.
 
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MODE="venv"
+[ "${1:-}" = "--conda" ] && MODE="conda"
 
 : "${ASLYTICS_GLOSS_ENV:=text-to-gloss}"
 : "${ASLYTICS_POSE_ENV:=gloss-to-skeleton}"
 
-if ! command -v conda >/dev/null 2>&1; then
-  echo "error: conda is not on PATH. Install Miniconda first." >&2
-  exit 1
+download_models() {
+  echo "==> downloading StanfordNLP English models (~250MB)"
+  "$@" -c "import stanfordnlp; stanfordnlp.download('en', force=True)"
+}
+
+if [ "$MODE" = "conda" ]; then
+  command -v conda >/dev/null 2>&1 || { echo "error: conda is not on PATH" >&2; exit 1; }
+
+  echo "==> conda env $ASLYTICS_GLOSS_ENV (English -> gloss)"
+  conda create -n "$ASLYTICS_GLOSS_ENV" python=3.10 -y
+  conda run -n "$ASLYTICS_GLOSS_ENV" pip install -r "$REPO_ROOT/text-to-gloss/requirements.txt"
+  download_models conda run -n "$ASLYTICS_GLOSS_ENV" python
+
+  echo "==> conda env $ASLYTICS_POSE_ENV (gloss -> pose -> video)"
+  conda create -n "$ASLYTICS_POSE_ENV" python=3.10 -y
+  conda run -n "$ASLYTICS_POSE_ENV" pip install -r "$REPO_ROOT/requirements-render.txt"
+
+  echo "==> Flask layer, in the current environment"
+  python -m pip install -r "$REPO_ROOT/requirements.txt"
+else
+  base=""
+  for candidate in python3 python; do
+    if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c "import sys" >/dev/null 2>&1; then
+      base="$candidate"; break
+    fi
+  done
+  [ -n "$base" ] || { echo "error: no working Python on PATH" >&2; exit 1; }
+
+  echo "==> creating $REPO_ROOT/.venv"
+  "$base" -m venv "$REPO_ROOT/.venv"
+  venv_python="$REPO_ROOT/.venv/bin/python"
+  [ -x "$venv_python" ] || venv_python="$REPO_ROOT/.venv/Scripts/python.exe"
+
+  "$venv_python" -m pip install --upgrade pip
+  "$venv_python" -m pip install -r "$REPO_ROOT/requirements.txt" \
+      -r "$REPO_ROOT/text-to-gloss/requirements.txt" -r "$REPO_ROOT/requirements-render.txt"
+  download_models "$venv_python"
 fi
-
-if ! command -v ffmpeg >/dev/null 2>&1; then
-  echo "warning: ffmpeg is not on PATH. Video encoding will fail." >&2
-  echo "         apt install ffmpeg   /   brew install ffmpeg" >&2
-fi
-
-echo "==> $ASLYTICS_GLOSS_ENV (English -> gloss)"
-conda create -n "$ASLYTICS_GLOSS_ENV" python=3.10 -y
-conda run -n "$ASLYTICS_GLOSS_ENV" pip install -r "$REPO_ROOT/text-to-gloss/requirements.txt"
-
-echo "==> downloading StanfordNLP English models (~250MB)"
-conda run -n "$ASLYTICS_GLOSS_ENV" python -c \
-  "import stanfordnlp; stanfordnlp.download('en', force=True)"
-
-echo "==> $ASLYTICS_POSE_ENV (gloss -> pose -> video)"
-conda create -n "$ASLYTICS_POSE_ENV" python=3.9 -y
-conda run -n "$ASLYTICS_POSE_ENV" pip install -r "$REPO_ROOT/pose-master/pose-master/requirements.txt"
-
-echo "==> Flask layer, in the current environment"
-pip install -r "$REPO_ROOT/requirements.txt"
 
 echo
-echo "Done. Remaining step: supply the sign lexicon."
-echo "  The per-gloss .pose files are not in this repository. Put them in"
-echo "  $REPO_ROOT/lexicon, or set ASLYTICS_LEXICON_DIR to point at them."
-echo "  See README.md."
+echo "Remaining step: supply the sign lexicon (not in this repository)."
+echo "  Put the .pose files in $REPO_ROOT/lexicon, or set ASLYTICS_LEXICON_DIR."
+echo "Then check the setup:  python utils/aslytics_env.py"

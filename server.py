@@ -1,18 +1,18 @@
 from flask import Flask, request, send_from_directory, jsonify
 from flask_cors import CORS
 import os
-import subprocess
 import json
 
 REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
+from utils.generate_asl_video import GenerationError, generate
 from youtube_transcript_api import YouTubeTranscriptApi
 from urllib.parse import urlparse, parse_qs
 
 app = Flask(__name__)
 CORS(app)
 
-UPLOAD_FOLDER = './captions'
-VIDEO_FOLDER = './videos'
+UPLOAD_FOLDER = os.path.join(REPO_ROOT, 'captions')
+VIDEO_FOLDER = os.path.join(REPO_ROOT, 'videos')
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(VIDEO_FOLDER, exist_ok=True)
@@ -35,18 +35,17 @@ def fetch_captions(video_id: str):
         return []
 
 def generate_video_from_text(text: str, output_name: str):
+    """Render one caption to video. Returns True on success.
+
+    Calls the Python pipeline directly. It used to shell out to main.sh via
+    /bin/bash, which does not exist on Windows.
     """
-    Call your main.sh script, passing the text, and output to a specific filename.
-    """
-    script = os.path.join(REPO_ROOT, "main.sh")
     try:
-        # A list argument with shell=False: captions are untrusted input from
-        # YouTube, and interpolating them into a shell string let any caption
-        # containing a quote or a backtick run arbitrary commands.
-        print(f"Running: {script} {text!r} {output_name!r}")
-        subprocess.run(["/bin/bash", script, text, output_name], check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"Error running main.sh: {e}")
+        generate(text, output_name)
+        return True
+    except GenerationError as error:
+        print(f"Failed to generate video for {text!r}: {error}")
+        return False
 
 @app.route('/upload_captions', methods=['POST'])
 def upload_captions():
@@ -71,12 +70,12 @@ def upload_captions():
     mapping = []
     for idx, entry in enumerate(transcript):
         start_time = entry['start']
-        text = entry['text'].replace('"', "'")  # 防止bash指令錯亂
+        text = entry['text']
 
         output_name = f"sentence_{idx+1}.mp4"
         output_path = os.path.join(VIDEO_FOLDER, output_name)
 
-        # Run main.sh 產生影片
+        # Render this caption
         generate_video_from_text(text, output_path)
 
         # 記錄 start-end對應的影片

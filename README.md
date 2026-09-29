@@ -60,19 +60,27 @@ Here is an example of ASLytics in action, demonstrating real-time ASL animations
 
 ### Prerequisites
 
-- **conda** — the gloss and pose steps need incompatible versions of torch and
-  numpy, so they live in separate environments.
-- **ffmpeg** — `apt install ffmpeg` or `brew install ffmpeg`.
+- **Python 3.10+.** conda is optional.
+- **ffmpeg** is optional: if none is on PATH, the copy bundled with
+  `imageio-ffmpeg` (installed below) is used.
 
 ### 1. Install
 
 ```bash
-bash install.sh
+bash install.sh             # creates .venv in the repo — works on Linux, macOS, Windows (Git Bash)
+bash install.sh --conda     # or: separate conda environments per pipeline half
 ```
 
-Creates `text-to-gloss` (English → gloss) and `gloss-to-skeleton`
-(gloss → pose → video), downloads the StanfordNLP English models, and installs
-the Flask layer into your current environment.
+Installs everything into one virtualenv and downloads the StanfordNLP English
+models.
+
+**Without bash** (e.g. PowerShell on Windows):
+
+```powershell
+python -m venv .venv
+.venv\Scripts\python -m pip install -r requirements.txt -r text-to-gloss/requirements.txt -r requirements-render.txt
+.venv\Scripts\python -c "import stanfordnlp; stanfordnlp.download('en', force=True)"
+```
 
 ### 2. Supply the sign lexicon
 
@@ -102,9 +110,14 @@ videos_to_poses --format mediapipe --directory /path/to/sign/videos
 ### 3. Run
 
 ```bash
-bash old_main.sh                        # smoke test: renders one fixed sentence
+python utils/aslytics_env.py            # check the setup; lists everything missing at once
+python utils/generate_asl_video.py "the cat is small" test.mp4   # one sentence end to end
 python app.py                           # then open http://127.0.0.1:5000
 ```
+
+`python utils/generate_asl_video.py --glosses "come bake" test.mp4` skips the
+English-to-gloss step, which is the quickest way to test rendering alone.
+`bash old_main.sh` and `bash main.sh` still work; they call the same Python.
 
 Or use the Chrome extension: run `python server.py`, then load `extension/`
 unpacked via `chrome://extensions` → Developer mode → Load unpacked.
@@ -116,8 +129,11 @@ unpacked via `chrome://extensions` → Developer mode → Load unpacked.
 | `ASLYTICS_LEXICON_DIR` | `lexicon/` | Where the per-gloss `.pose` files live |
 | `ASLYTICS_WORK_DIR` | `.work/` | Scratch space for intermediate poses and video |
 | `ASLYTICS_VIDEO_DIR` | `videos/` | Rendered clips |
-| `ASLYTICS_GLOSS_ENV` | `text-to-gloss` | conda env for the gloss step |
-| `ASLYTICS_POSE_ENV` | `gloss-to-skeleton` | conda env for the pose step |
+| `ASLYTICS_RUNNER` | `auto` | `auto` uses conda if its environments exist, else Python; or force `conda` / `python` |
+| `ASLYTICS_PYTHON` | repo `.venv`, else the current Python | Interpreter for both pipeline halves |
+| `ASLYTICS_GLOSS_PYTHON` / `ASLYTICS_POSE_PYTHON` | `ASLYTICS_PYTHON` | Per-half interpreter override |
+| `ASLYTICS_GLOSS_ENV` / `ASLYTICS_POSE_ENV` | `text-to-gloss` / `gloss-to-skeleton` | conda environment names, in conda mode |
+| `ASLYTICS_FFMPEG` | ffmpeg on PATH, else imageio-ffmpeg's | ffmpeg binary |
 
 ### Licensing
 

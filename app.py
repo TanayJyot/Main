@@ -1,9 +1,9 @@
 from flask import Flask, request, render_template, jsonify
 from flask_cors import CORS
-import subprocess
 import os
 from utils.youtube_caption_utils import extract_video_id, get_youtube_captions_with_timing
 from merge_asl_clips import merge_asl_video_clips
+from utils.generate_asl_video import GenerationError, generate
 
 REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
 
@@ -41,23 +41,18 @@ def index():
             filename = f"caption_{idx}.mp4"
             output_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
 
-            result = subprocess.run(
-                ["bash", os.path.join(REPO_ROOT, "utils", "generate_asl_video.sh"),
-                 sentence, output_path],
-                capture_output=True,
-                text=True
-            )
+            # Called in-process rather than through bash: on Windows, `bash`
+            # from Python can resolve to WSL's, which cannot see the venv.
+            try:
+                generate(sentence, output_path)
+            except GenerationError as error:
+                print(f"Failed to generate video for sentence: {sentence}\n  {error}")
+                continue
 
-            print("STDOUT:", result.stdout)
-            print("STDERR:", result.stderr)
-
-            if os.path.exists(output_path):
-                # Carry the caption's own timing with its file. Rebuilding the
-                # pairing later from list positions breaks as soon as one
-                # caption is skipped above.
-                generated_files.append(dict(cap, file=filename))
-            else:
-                print(f"Failed to generate video for sentence: {sentence}")
+            # Carry the caption's own timing with its file. Rebuilding the
+            # pairing later from list positions breaks as soon as one
+            # caption is skipped above.
+            generated_files.append(dict(cap, file=filename))
 
         if not generated_files:
             return "No ASL videos were generated."

@@ -1,0 +1,16 @@
+# The pose half of the pipeline: gloss sequence -> .pose -> skeleton video.
+#
+# Replaces installing pose-master/pose-master/requirements.txt, a macOS
+# environment freeze that pins tensorflow-macos and cannot be installed on
+# Linux or Windows. This is only what the render path imports.
+
+pose-format>=0.9.0
+numpy
+scipy                    # smoothing.py
+opencv-python-headless   # PoseVisualizer
+vidgear                  # PoseVisualizer.save_video
+imageio-ffmpeg           # ffmpeg fallback when none is on PATH
+
+# Only needed to *create* .pose files from video (video_to_pose), not to
+# render them. 0.10.30 removed the Solutions API that pose-format uses.
+mediapipe==0.10.21
