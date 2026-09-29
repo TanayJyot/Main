@@ -22,7 +22,13 @@ Two modes.
   If the manifest has two or more signers for a gloss, their pairwise
   distances give the real calibration: same sign, different signer.
 
-The manifest is a CSV with columns `path,concept,source,label,signer`.
+The manifest is a CSV with columns `path,concept,source,label,signer,role`.
+`role` is `selected` for the one clip the conversion's written rule chose to
+represent a gloss, or `calibration` for extra clips of the same gloss by other
+signers. Only `selected` clips are scored against the old lexicon, so a gloss
+with five calibration clips does not count five times; every clip of a gloss
+feeds the same-sign-different-signer calibration. A missing `role` means
+`selected`.
 
 Nothing here selects or filters new signs by their distance to the old
 lexicon. Those numbers are outputs only; feeding them back into which clip
@@ -166,7 +172,9 @@ def with_new(old_dir: str, manifest_path: str, null):
             continue
         correct = set(filter(None, row["old_files"].split("|")))
         new = load_features(entry["path"])
-        by_concept_signer[entry["concept"]].append(new)
+        by_concept_signer[entry["concept"]].append((entry.get("signer", ""), new))
+        if (entry.get("role") or "selected").strip() != "selected":
+            continue
 
         distances = {name: compare(old, new).distance for name, old in old_features.items()}
         own = min((name for name in correct if name in distances), key=distances.get, default=None)
@@ -181,11 +189,16 @@ def with_new(old_dir: str, manifest_path: str, null):
             "top1": top_k_hit(distances, correct, 1), "top5": top_k_hit(distances, correct, 5),
         })
 
+    # Same gloss, different signers. Pairs from one signer are skipped: they
+    # would make the metric look better at separating signs than it is.
     same_signer_pairs = []
     for signs in by_concept_signer.values():
         for i in range(len(signs)):
             for j in range(i + 1, len(signs)):
-                same_signer_pairs.append(compare(signs[i], signs[j]).distance)
+                (signer_a, a), (signer_b, b) = signs[i], signs[j]
+                if signer_a and signer_a == signer_b:
+                    continue
+                same_signer_pairs.append(compare(a, b).distance)
 
     def block(rows):
         return {
