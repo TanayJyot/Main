@@ -4,6 +4,11 @@ Scope: every dataset, pretrained model, and third-party corpus that the ASLytics
 pipeline touches at build time or run time. Written for a commercial-use
 assessment.
 
+**Status, 2026-09-29.** This file was first written before the lexicon's
+provenance was known, and it initially identified SHHQ as the blocker. Both have
+since been settled, and this header reflects that. SHHQ turned out never to be
+part of the product (§2); the real blocker is the scraped sign lexicon (§2b).
+
 Pipeline recap (what consumes what):
 
 ```
@@ -11,141 +16,102 @@ YouTube URL
   -> utils/youtube_caption_utils.py      : youtube_transcript_api  -> caption text
   -> text-to-gloss/start.py              : StanfordNLP en_ewt models -> gloss list
   -> concatenate_pose_function/concatenate.py
-       gloss_to_pose()                   : reads <gloss>.pose from a local lexicon  <-- provenance unknown (§2b)
+       gloss_to_pose()                   : reads <gloss>.pose from the lexicon  <-- scraped, cannot ship (§2b)
        concatenate_poses()               : pose-format (MIT)
-  -> pose_format.PoseVisualizer          : MediaPipe Holistic skeleton -> mp4   [what ships today]
+  -> pose_format.PoseVisualizer          : MediaPipe Holistic skeleton -> mp4
   -> merge_asl_clips.py                  : moviepy -> final_asl_output.mp4
-
-  not wired in, but pinned as a dependency:
-  -> pose-to-video==0.0.1                : SD-1.5 ControlNet / pix2pix / StyleGAN3
-                                           finetuned on BIU-MG + SHHQ  <-- SHHQ is non-commercial (§2)
 ```
 
-**Bottom line:** the dataset that forbids commercial use is **SHHQ-1.0**, which
-the `pose-to-video` renderer models were finetuned on. The signer data those
-models also use (BIU-MG) is explicitly cleared for commercial use, and SHHQ is
-not in the committed render path — so this is fixable by retraining the
-appearance half (§4a), not by abandoning the approach. Two other items block a
-commercial release independently: the sign lexicon's unknown provenance (§2b)
-and GPL-3.0 code in `text-to-gloss/` (§3).
+**Bottom line:** one item blocks a commercial release — **the sign lexicon**,
+842 `.pose` files scraped from ASL Signbank and Signing Savvy (§2b). The route
+out is licensed video converted to `.pose` with the same pipeline: PopSign ASL
+(CC BY 4.0, usable now) and ASL Citizen (commercial use requested from Microsoft;
+awaiting reply). One item is a business decision rather than a blocker: GPL-3.0
+code in `text-to-gloss/` (§3).
+
+**Resolved:**
+
+- **ASLytics' own code.** The original team's README licenses it CC BY-NC-SA 4.0.
+  The code is owned by Japleen Kaur, so the owner can relicense it; recorded
+  2026-09-29 on the user's report. If anyone else authored code in the original
+  repository, their agreement is needed as well.
+- **SHHQ.** Not in the product (§2).
 
 ## 1. Inventory
 
 | # | Data asset | Where it enters the code | Licence | Commercial use |
 |---|---|---|---|---|
-| 0 | **SHHQ-1.0** — training data behind the `pose-to-video` renderer models | `pose-to-video==0.0.1` in `pose-master/pose-master/requirements.txt` | **Non-commercial research only**, gated by application + password — see §2 | **NO** |
-| 1 | **Per-gloss ASL sign lexicon** (`<gloss>.pose` files) | `concatenate.py:gloss_to_pose()` → `.gitignore/generated_pose/{vocab}.pose` | **Undeclared in this repo** — see §2b | **Unknown, assume no** |
-| 2 | **UD English EWT treebank** (via StanfordNLP `en_ewt` models) | `text-to-gloss/start.py:51` `treebank='en_ewt'` | CC BY-SA 4.0 | Yes, with attribution + share-alike on the annotations |
-| 3 | **MediaPipe Holistic** pretrained models | `mediapipe==0.10.21`, used by `pose-format` for pose estimation/rendering | Apache-2.0 | Yes |
+| 1 | **Per-gloss ASL sign lexicon** (842 `<gloss>.pose` files) | `concatenate.py:gloss_to_pose()` via `lexicon_dir()` | Derived from **ASL Signbank (CC BY-NC-SA 4.0)** and **Signing Savvy (ToS forbids scraping)** — see §2b | **NO** |
+| 2 | **UD English EWT treebank** (via StanfordNLP `en_ewt` models) | `text-to-gloss/start.py` `treebank='en_ewt'` | CC BY-SA 4.0 | Yes, with attribution + share-alike on the annotations |
+| 3 | **MediaPipe Holistic** pretrained models | `mediapipe==0.10.21`, used by `pose-format` | Apache-2.0 | Yes |
 | 4 | **YouTube caption transcripts** (runtime data, not a dataset) | `youtube_transcript_api` in `utils/youtube_caption_utils.py`, `server.py` | Not licensed to you — governed by YouTube ToS; the library scrapes an undocumented endpoint | Contractual risk, not a licence grant |
 | 5 | `pose-format` sample `.pose` files (`tests/data/*.pose`) | test fixtures only, not shipped | MIT | Yes |
-| 6 | Signspeech text-to-gloss **code** (not data) | all of `text-to-gloss/start.py` | **GPL-3.0-or-later** | Allowed, but copyleft — see §3 |
+| 6 | Signspeech text-to-gloss **code** (not data) | all of `text-to-gloss/start.py` | **GPL-3.0-or-later**, © Javier O. Cordero Pérez | Allowed, but copyleft — see §3 |
+| 7 | **PopSign ASL v1.0** (replacement candidate) | not yet integrated | CC BY 4.0 | Yes, with attribution |
+| 8 | **ASL Citizen** (replacement candidate) | not yet integrated | Microsoft research licence; commercial use available on request | **Pending** — email sent, no reply yet |
 
 Nothing else in the tree is a dataset. `videos/*.mp4`, `static/videos/*.mp4`,
 `pose_output*.mp4` and `concatenate_pose_function/output_*.mp4` are all
 **outputs** of the renderer (x264-encoded MediaPipe skeleton renders), not
 source sign footage.
 
-## 2. The non-commercial dataset: SHHQ, behind the pose→video model
+## 2. Resolved: SHHQ was never in the product
 
-**This is the dataset the renderer model was finetuned on, and it is the one
-that forbids commercial use.**
+The first version of this audit identified SHHQ-1.0 as the blocker. That was
+based on a dependency pin, `pose-to-video==0.0.1`, in
+`pose-master/pose-master/requirements.txt`. That package's photorealistic
+renderer models are trained on BIU-MG (permissive) and SHHQ-1.0 (non-commercial
+research only; its agreement also covers "derived data", i.e. weights).
 
-`pose-master/pose-master/requirements.txt:70` pins `pose-to-video==0.0.1`
-(sign-language-processing/pose-to-video). That package ships the models that
-turn a `.pose` skeleton into a photorealistic signer. Its `data/` directory
-contains exactly two training corpora:
+It turned out not to matter:
 
-| Corpus | What it is | Licence |
+- the committed pipeline never imports `pose-to-video` — it renders stick
+  figures with `pose_format.PoseVisualizer`, as `assets/result.png` shows;
+- nothing photorealistic was ever trained or used by the project;
+- the pin was dead, and has been removed.
+
+If photorealistic rendering is ever wanted, train on **BIU-MG only**. Its README
+says: *"You are permitted to use this data for any purpose, including commercial
+purposes, without restriction."* §4a and §6 keep the original SHHQ migration
+plan for reference; they are shelved.
+
+## 2b. The blocker: the gloss→pose sign lexicon
+
+**Provenance, established 2026-09-29.** The lexicon is **842 `.pose` files**
+covering glosses **a–p only** — the scrape stopped partway through the alphabet.
+Earlier notes that put it at ~4,400 signs were wrong. It was built by scraping
+sign videos from two sites and running them through
+`video_to_pose --format mediapipe`:
+
+| Source | Terms | Consequence |
 |---|---|---|
-| **BIU-MG** | Green-screen video of two signers (Maayan Gazuli, ISL interpreter, and Amit Moryossef) | **Permissive.** Its README: *"You are permitted to use this data for any purpose, including commercial purposes, without restriction."* |
-| **SHHQ-1.0** | 40K high-quality full-body human images ("various humans, not signing"), from the StyleGAN-Human project (Shanghai AI Lab) — supplies general human appearance | **Non-commercial research only** |
+| **ASL Signbank** | CC BY-NC-SA 4.0 | Non-commercial. Usable only as a reference for what a sign should look like. |
+| **Signing Savvy** | Paid commercial site; terms forbid scraping | A terms-of-service problem, not a licence. There is nothing to comply with. |
 
-The signer data is fine. **SHHQ is not.** Its release agreement states the
-dataset "is available for non-commercial research purposes only," and users
-agree not to "reproduce, duplicate, copy, sell, trade, resell or exploit any
-portion of the images **and any portion of the derived data** for commercial
-purposes." Distribution to third parties is prohibited outside a single site
-in the same organisation, and Shanghai AI Lab reserves the right to terminate
-access at any time.
+The `.pose` files being "just keypoints" does not change this: they are derived
+from the source videos. The lexicon lives only in the original team's repository
+(`Japleen-Kaur2409/ASLytics-RBC`, under `.gitignore/generated_pose/`) and must
+never be committed here.
 
-The "derived data" clause is what bites: **finetuned weights are derived data.**
-So any model trained on SHHQ cannot be shipped in a commercial product, even
-though you would be distributing weights rather than images. Note also that
-obtaining SHHQ at all requires an approved application and a password
-(`data/SHHQ/README.md` in pose-to-video: `unzip -P "PASSWORD" SHHQ-1.0.zip`) —
-which means somebody on the team signed that agreement personally.
+**Its role from now on: a held-out test set.** Compare replacement signs against
+it; never tune, select or filter replacements to be closer to it, and never
+train on it. Doing so would make the replacement derived data of a
+CC BY-NC-SA source.
 
-What the models are, concretely:
+**Replacement sources.** Coverage is the share of signable tokens in everyday
+English; see `analysis/coverage/coverage.md`.
 
-- **ControlNet** — `runwayml/stable-diffusion-v1-5` + `lllyasviel/sd-controlnet-openpose`,
-  finetuned 20 epochs at 512×512, published as `sign/sd-controlnet-mediapipe`.
-- **Pix2Pix**, **StyleGAN3** — same two corpora, TF/StyleGAN stacks.
-- **Mixamo** — 3D avatar route, no SHHQ involvement, but Adobe Mixamo has its
-  own terms.
+| Source | Signs | Coverage | Licence | Status |
+|---|---|---|---|---|
+| Old lexicon | 842 | 33% | Scraped | Cannot ship; test set only |
+| PopSign ASL v1.0 | 250 | 19% | CC BY 4.0 | Usable now |
+| ASL Citizen | 2,731 | 63% | Research; commercial on request | Email to Microsoft sent 2026-09-29; awaiting reply |
+| PopSign + ASL Citizen | — | 65% | — | Needs Microsoft's yes |
 
-The base models are comparatively permissive (SD-1.5 is CreativeML OpenRAIL-M:
-commercial use allowed subject to use restrictions; the ControlNet openpose
-weights are OpenRAIL-family). Confirm those separately — but they are not the
-blocker. SHHQ is.
-
-### 2a. Important scoping: it is not in the committed render path
-
-The committed pipeline does **not** import `pose-to-video`. `utils/generate_asl_video.sh`
-step 4 renders with `pose_format.PoseVisualizer`, i.e. the stick-figure
-visualiser, and `assets/result.png` confirms it — the demo output is a red
-skeleton on white, not a photorealistic signer.
-
-So the exposure today is: a pinned dependency, an SHHQ access agreement somebody
-signed, and any weights/outputs produced off-repo. If a photorealistic renderer
-exists anywhere in the project's history or on a teammate's machine, that
-artefact is the contaminated one. The current demo is clean.
-
-### 2b. Still unresolved: the gloss→pose sign lexicon
-
-Separate problem, still open, and it will block a commercial release on its own.
-
-Evidence in the repo:
-
-- `pose-master/pose-master/concatenate_pose_function/concatenate.py:120`
-  ```python
-  def gloss_to_pose(list_of_gloss: List[str]) -> List:
-      for vocab in list_of_gloss:
-          pose_data = load_pose(f'/home/ellie/GitHub/ASLytics-RBC/.gitignore/generated_pose/{vocab}.pose')
-  ```
-- The path is hardcoded to one developer's machine and deliberately placed
-  under a directory named `.gitignore/`, so the lexicon was **never committed**
-  and its provenance was never recorded.
-- `pose-master/pose-master/requirements.txt` pins `selenium`, `webdriver-manager`
-  and `beautifulsoup4`, which nothing in the committed pipeline imports. They are
-  also not declared by `pose-to-video`, so they remain unexplained — browser
-  automation plus an HTML parser is what you would install to **scrape a sign
-  dictionary site**, whose videos would then be run through
-  `video_to_pose --format mediapipe` (see the `pose-format` README) to produce
-  the `.pose` files. Treat this as a lead to confirm with the team, not a
-  finding: the file is a whole-environment `pip freeze`, so transitive packages
-  from unrelated experiments are also in it.
-
-Either way the `.pose` files are derived works of some ASL sign-video corpus,
-and the project has no record of which one. **Every realistic candidate is
-non-commercial.** The `.pose` files being "just keypoints" does not launder
-this: they are derivative works of the source videos.
-
-| Candidate source | Licence | Commercial |
-|---|---|---|
-| WLASL | Computational Use of Data Agreement (C-UDA); project states academic/computational use only | No |
-| MS-ASL | Microsoft Research non-commercial research licence | No |
-| ASL Citizen (Microsoft) | MSR licence: "non-commercial, non-revenue generating, research purposes only" | No |
-| ASL-LEX 2.0 | CC BY-NC 4.0 (database); reference videos licensed separately | No |
-| How2Sign | CC BY-NC 4.0 | No |
-| Sem-Lex | CC BY-NC | No |
-| SignSuisse (what the upstream `spoken-to-signed-translation` ships) | Non-commercial; also DSGS/LSF-CH/LIS-CH, not ASL | No |
-| Signing Savvy / SpreadTheSign / Handspeak (scraped) | All rights reserved; ToS forbids scraping and redistribution | No |
-
-**Action required:** identify the actual source before shipping. Ask whoever
-built `generated_pose/` (the `/home/ellie/...` machine), or inspect the
-`.pose` file headers and the original scraper. Until then, treat the lexicon as
-non-commercial and unshippable.
+Also checked and ruled out: WLASL (C-UDA, academic only), MS-ASL (research
+only), ASL-LEX (CC BY-NC 4.0), How2Sign (CC BY-NC 4.0), Sem-Lex (non-commercial).
+Some community dataset catalogues list WLASL, ASL Citizen and ASL-LEX as CC BY
+4.0. They are wrong; always read the dataset's own licence page.
 
 ## 3. Second blocker (different kind): GPL-3.0 in `text-to-gloss/start.py`
 
@@ -170,6 +136,9 @@ Everything else is permissive: `pose-format` is MIT (`pose-master/pose-master/LI
 MediaPipe is Apache-2.0, Flask/moviepy/scipy are BSD/MIT.
 
 ## 4a. Alternatives for SHHQ (the renderer's appearance data)
+
+> **Shelved 2026-09-29.** SHHQ was never in the product (§2). Kept for reference
+> in case photorealistic rendering is revisited.
 
 The fix here is surgical, because only half the training mix is contaminated.
 
@@ -275,6 +244,9 @@ the YouTube ToS, so it does not give you a commercially redistributable lexicon.
   so this audit does not have to be reconstructed from import lists again.
 
 ## 6. Migration plan: replacing SHHQ without losing quality
+
+> **Shelved 2026-09-29.** SHHQ was never in the product (§2). The current plan is
+> the lexicon replacement in `HANDOFF.md`.
 
 The goal is to end up with a renderer that scores the same as today's on data
 you own. "The same" has to be measured, so the first phase is instrumentation,
