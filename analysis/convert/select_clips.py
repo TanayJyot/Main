@@ -3,8 +3,9 @@
 The rule is written down before any result exists and never looks at the old
 lexicon's content:
 
-  dominant hand  the hand whose wrist (POSE_LANDMARKS) travels further,
-                 normalised by shoulder width
+  dominant hand  the hand detected in clearly more frames (> 0.2 apart);
+                 otherwise the one whose wrist (POSE_LANDMARKS) travels
+                 further, normalised by shoulder width
   score          fraction of frames in which the dominant hand's landmarks
                  were detected
   tie-breaks     mean visibility of the dominant wrist, then filename
@@ -81,9 +82,19 @@ def score(pose: Pose) -> dict:
         xy = data[:, idx[p]]
         return float(np.linalg.norm(np.diff(xy, axis=0), axis=-1).sum() / scale)
 
-    dominant = "LEFT" if travel("LEFT_WRIST") > travel("RIGHT_WRIST") else "RIGHT"
-    hand = component_slice(pose, f"{dominant}_HAND_LANDMARKS")
-    presence = float((conf[:, hand].max(axis=1) > 0).mean()) if len(conf) else 0.0
+    def seen(side: str) -> float:
+        hand = component_slice(pose, f"{side}_HAND_LANDMARKS")
+        return float((conf[:, hand].max(axis=1) > 0).mean()) if len(conf) else 0.0
+
+    # The hand MediaPipe actually tracks is the signing one when the two differ
+    # clearly. Wrist travel alone picked an untracked arm (TREE: left seen in
+    # 1% of frames, right in 82%) and mirrored the sign onto the wrong hand.
+    seen_by_side = {"LEFT": seen("LEFT"), "RIGHT": seen("RIGHT")}
+    if abs(seen_by_side["LEFT"] - seen_by_side["RIGHT"]) > 0.2:
+        dominant = max(seen_by_side, key=seen_by_side.get)
+    else:
+        dominant = "LEFT" if travel("LEFT_WRIST") > travel("RIGHT_WRIST") else "RIGHT"
+    presence = seen_by_side[dominant]
     visibility = float(conf[:, idx[f"{dominant}_WRIST"]].mean()) if len(conf) else 0.0
     return {"dominant": dominant, "presence": presence, "visibility": visibility}
 
