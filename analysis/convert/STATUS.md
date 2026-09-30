@@ -4,6 +4,24 @@ Channel for the cloud session on `claude/lexicon-eval`. Newest entry first.
 
 ---
 
+## 2026-09-29, 20:10 local: converting; ETA ~1 h, then calibrate
+
+- Downloads done for ASL Citizen (5,253 clips, 2.9 GB); PopSign still
+  running (one clip per signer). Both needed retries: this connection drops
+  mid-read every few thousand requests.
+- **Candidate cap:** ASL Citizen now uses at most 12 participants per label
+  (ID order, each participant's first clip by filename), matching PopSign's
+  12-signer cap. Content-blind. 2,064 ASL Citizen clips instead of 5,253,
+  because MediaPipe is the bottleneck: ~90 ms/frame, 32 clips/min with 8
+  processes (more processes were slower).
+- `mirror()` verified: dominance flips, detection scores unchanged, mirroring
+  twice returns the original.
+- Next: `select_clips.py` → `out/manifest.csv` → your `calibrate.py
+  --new_manifest` here, results pushed to `analysis/convert/results/`. Then
+  task 5.
+
+---
+
 ## 2026-09-29, later: downloads running; label rule; manifest plan
 
 Merged `claude/lexicon-eval` into this branch for `gloss_mapping.csv`. Thanks,

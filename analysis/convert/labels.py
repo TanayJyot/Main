@@ -58,3 +58,30 @@ def candidate_labels() -> dict[str, dict]:
                                      "none" if any_exact or not labels else "concept")
         out[gloss] = entry
     return out
+
+
+MAX_SIGNERS = 12
+DATA = HERE / "data"
+
+
+def citizen_candidates() -> dict[str, tuple[str, str]]:
+    """video file -> (label, participant) for the ASL Citizen clips that may
+    represent a pilot gloss. Content-blind cap, matching PopSign's: per label,
+    participants in ID order (P1, P2, ...), first MAX_SIGNERS, and each
+    participant's first clip by filename."""
+    import csv
+    from collections import defaultdict
+
+    wanted = {l for c in candidate_labels().values() for l in c["citizen"]}
+    by_label: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
+    for split in ["train", "val", "test"]:
+        with open(DATA / "aslc" / f"{split}.csv", encoding="utf8") as f:
+            for r in csv.DictReader(f):
+                if r["Gloss"] in wanted:
+                    by_label[r["Gloss"]][r["Participant ID"]].append(r["Video file"])
+    pid = lambda p: (int(p[1:]) if p[1:].isdigit() else 10**6, p)  # noqa: E731
+    out = {}
+    for label, participants in by_label.items():
+        for p in sorted(participants, key=pid)[:MAX_SIGNERS]:
+            out[sorted(participants[p])[0]] = (label, p)
+    return out

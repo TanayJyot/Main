@@ -28,6 +28,7 @@ import argparse
 import csv
 import math
 import tarfile
+import time
 import urllib.request
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
@@ -74,13 +75,14 @@ def fetch_aslc(labels: set[str], workers: int = 8) -> None:
     def worker(chunk: list[str]) -> int:
         # One RemoteZip per thread: each holds its own HTTP session and the
         # parsed central directory.
-        with RemoteZip(ASLC_URL, support_suffix_range=False) as z:
-            for i, name in enumerate(chunk):
-                tmp = videos / (name + ".part")
-                tmp.write_bytes(z.read(f"ASL_Citizen/videos/{name}"))
-                tmp.replace(videos / name)
-                if i % 100 == 0:
-                    print(f"  {name}", flush=True)
+        z = retry(lambda: RemoteZip(ASLC_URL, support_suffix_range=False))
+        for i, name in enumerate(chunk):
+            tmp = videos / (name + ".part")
+            tmp.write_bytes(retry(lambda: z.read(f"ASL_Citizen/videos/{name}")))
+            tmp.replace(videos / name)
+            if i % 100 == 0:
+                print(f"  {name}", flush=True)
+        z.close()
         return len(chunk)
 
     chunks = [todo[i::workers] for i in range(workers)]
@@ -89,12 +91,26 @@ def fetch_aslc(labels: set[str], workers: int = 8) -> None:
     print(f"ASL Citizen: fetched {done}")
 
 
+def retry(fn, attempts: int = 6):
+    """Call fn(), retrying with backoff: long runs over a laptop connection
+    drop mid-read (IncompleteRead) every few thousand requests."""
+    for attempt in range(attempts):
+        try:
+            return fn()
+        except Exception:  # noqa: BLE001 - re-raised on the last attempt
+            if attempt == attempts - 1:
+                raise
+            time.sleep(2 ** attempt)
+
+
 def _range(url: str, start: int, length: int) -> bytes:
-    req = urllib.request.Request(url, headers={"Range": f"bytes={start}-{start + length - 1}"})
-    with urllib.request.urlopen(req, timeout=60) as r:
-        if r.status != 206:
-            raise IOError(f"{url}: expected 206, got {r.status}")
-        return r.read()
+    def once() -> bytes:
+        req = urllib.request.Request(url, headers={"Range": f"bytes={start}-{start + length - 1}"})
+        with urllib.request.urlopen(req, timeout=60) as r:
+            if r.status != 206:
+                raise IOError(f"{url}: expected 206, got {r.status}")
+            return r.read()
+    return retry(once)
 
 
 def tar_members(url: str) -> list[tuple[str, int, int]]:

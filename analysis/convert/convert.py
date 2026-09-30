@@ -8,6 +8,7 @@ Output matches analysis/old_lexicon_pose_spec.json: full Holistic, 5
 components, 576 points, XYZC. check_spec() verifies every file.
 
     data/aslc/videos/<id>-<GLOSS>.mp4   -> data/pose/aslc/<id>-<GLOSS>.pose
+                                           (only labels.citizen_candidates())
     data/popsign/<sign>/<clip>.mp4      -> data/pose/popsign/<sign>/<clip>.pose
 
 Re-running skips clips already converted. Failures are logged to
@@ -27,6 +28,8 @@ import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
+from labels import citizen_candidates
+
 HERE = Path(__file__).parent
 DATA = HERE / "data"
 SPEC = HERE.parent / "old_lexicon_pose_spec.json"
@@ -34,7 +37,8 @@ SPEC = HERE.parent / "old_lexicon_pose_spec.json"
 
 def jobs() -> list[tuple[Path, Path]]:
     out = []
-    for mp4 in sorted((DATA / "aslc" / "videos").glob("*.mp4")):
+    for name in sorted(citizen_candidates()):
+        mp4 = DATA / "aslc" / "videos" / name
         out.append((mp4, DATA / "pose" / "aslc" / (mp4.stem + ".pose")))
     for mp4 in sorted((DATA / "popsign").glob("*/*.mp4")):
         out.append((mp4, DATA / "pose" / "popsign" / mp4.parent.name / (mp4.stem + ".pose")))

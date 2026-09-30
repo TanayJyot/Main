@@ -43,7 +43,7 @@ from pathlib import Path
 import numpy as np
 from pose_format import Pose
 
-from labels import candidate_labels
+from labels import candidate_labels, citizen_candidates
 
 HERE = Path(__file__).parent
 DATA = HERE / "data"
@@ -110,16 +110,6 @@ def mirror(pose: Pose) -> Pose:
     return pose
 
 
-def aslc_signers() -> dict[str, tuple[str, str]]:
-    """video file -> (label, participant)"""
-    out = {}
-    for split in ["train", "val", "test"]:
-        with open(DATA / "aslc" / f"{split}.csv", encoding="utf8") as f:
-            for r in csv.DictReader(f):
-                out[r["Video file"]] = (r["Gloss"], r["Participant ID"])
-    return out
-
-
 def candidates(gloss: str, labels: dict, signers: dict) -> list[dict]:
     out = []
     for label in labels["popsign"]:
@@ -127,9 +117,9 @@ def candidates(gloss: str, labels: dict, signers: dict) -> list[dict]:
             signer = p.stem.split("-")[0].removeprefix("gtsignstudy")
             out.append({"path": p, "source": "popsign", "label": label, "signer": f"popsign:{signer}"})
     wanted = set(labels["citizen"])
-    for p in sorted((DATA / "pose" / "aslc").glob("*.pose")):
-        label, participant = signers.get(p.stem + ".mp4", ("", ""))
-        if label in wanted:
+    for video, (label, participant) in sorted(signers.items()):
+        p = DATA / "pose" / "aslc" / (Path(video).stem + ".pose")
+        if label in wanted and p.exists():
             out.append({"path": p, "source": "citizen", "label": label, "signer": f"citizen:{participant}"})
     return out
 
@@ -138,7 +128,7 @@ def main() -> None:
     old_dir = Path(os.environ.get("ASLYTICS_LEXICON_DIR", ""))
     if not old_dir.is_dir():
         raise SystemExit("set ASLYTICS_LEXICON_DIR to the old lexicon (used only to fill gaps)")
-    signers = aslc_signers()
+    signers = citizen_candidates()
     mixed = OUT / "lexicon_mixed"
     if mixed.exists():
         shutil.rmtree(mixed)
