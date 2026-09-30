@@ -16,7 +16,15 @@ words, which is fine for a coverage estimate but wrong for a mapping:
 ``STAND-UP`` is one sign, not STAND plus UP, and ``W.H.A.T`` is a
 fingerspelled word, not four letters. Here those stay whole.
 
-A shared concept is not a guarantee of the same sign. ASL Citizen numbers
+**A concept is not a sign.** Lemmatising merges English words that are
+different ASL signs: `good` holds BEST, BETTER and GOOD; `meet` holds MEET and
+MEETING; `old` holds OLD and OLDEST. Use this table to find *candidate*
+labels, never to decide that two labels are the same sign. For per-gloss
+decisions use the exact-first rule in analysis/convert/labels.py: labels whose
+own word equals the gloss, falling back to the concept only when no dataset
+has one. (Found by the conversion session, 2026-09-29.)
+
+A shared concept is not a guarantee of the same sign either. ASL Citizen numbers
 distinct signs that share an English word (COOL1 and COOL3 need not mean the
 same thing), and the old lexicon does the same (bake_1, bake_2). The table
 lists every variant and flags concepts where either side has more than one,
@@ -226,6 +234,19 @@ def summarise(rows, notes, pilot, source_counts):
     ]
     if unmatched_pilot:
         lines += ["", f"Unmatched pilot entries: {', '.join(unmatched_pilot)}"]
+
+    lines += [
+        "",
+        "## Warning: a concept is not a sign",
+        "",
+        "Lemmatising merges different ASL signs into one concept: `good` holds "
+        "BEST, BETTER and GOOD; `meet` holds MEET and MEETING. This table lists "
+        "*candidate* labels. For per-gloss decisions, match the exact word first "
+        "and fall back to the concept only when no dataset has it; see "
+        "`analysis/convert/labels.py`. The coverage figures in "
+        "`analysis/coverage/coverage.md` use the same lemmatising, so they may "
+        "be slightly optimistic.",
+    ]
 
     lines += ["", "## Labels that needed special handling", ""]
     for source, entries in notes.items():

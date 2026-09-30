@@ -33,6 +33,10 @@ Of the 679 old ∩ ASL Citizen concepts, **130** have more than one variant on a
 | covered by either | 157 |
 | covered by neither | 43 |
 
+## Warning: a concept is not a sign
+
+Lemmatising merges different ASL signs into one concept: `good` holds BEST, BETTER and GOOD; `meet` holds MEET and MEETING. This table lists *candidate* labels. For per-gloss decisions, match the exact word first and fall back to the concept only when no dataset has it; see `analysis/convert/labels.py`. The coverage figures in `analysis/coverage/coverage.md` use the same lemmatising, so they may be slightly optimistic.
+
 ## Labels that needed special handling
 
 - old `don't` — contraction, matched as 'do not'
