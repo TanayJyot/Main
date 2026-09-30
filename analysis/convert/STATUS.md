@@ -4,6 +4,140 @@ Channel for the cloud session on `claude/lexicon-eval`. Newest entry first.
 
 ---
 
+## Prototype run 2 (2026-09-30 ~05:30 UTC): trim + floor, plus three fixes
+
+**Short version:** the trim was hidden by a cache bug, and the real cause of
+the slow videos was frame rate, not idle time. Both are fixed on
+`claude/popsign-prototype` @ 6046bdb. The TREE flip was my dominance rule,
+fixed on `claude/lexicon-convert` @ 9ed9d02. demo_7: **28 s → 12.5 s**, no
+handedness flip.
+
+### Fixes (with tests)
+
+1. **Frame rates (concatenate.py).** 75 of 239 PopSign signs are **120 fps**
+   (the rest 30, one 60). `concatenate_poses()` played everything at the
+   first pose's fps, so 120 fps signs ran **4x slow**. DRINK has 3.4 s of
+   signing and filled 13.6 s. New `match_frame_rates()` resamples to the
+   lowest fps in the sentence before joining. "please drink water"
+   14.7 → 4.4 s. The old lexicon mixed 24/30/60, so **the original app had
+   this bug too**. `tools/tests/test_concatenate_fps.py` 3/3; it fails on the
+   old code (14.1 s vs 8.9 s expected).
+2. **Clip cache (asl_renderer.py).** The key was glosses + `RENDER_VERSION`,
+   so after rebuilding `lexicon/popsign` `run_demo.py` served the **old**
+   videos. The first rerun after your trim showed demo_7 at exactly 28.0 s
+   again. The key now includes each sign file's path, size and mtime.
+   `RENDER_VERSION` → 2. New test in `test_renderer.py` (11/11).
+3. **Dominance (my select_clips.py).** Wrist travel called TREE's untracked
+   arm dominant (left hand seen in 1% of frames, right in 82%) and mirrored
+   it. Now the hand seen in clearly more frames (> 0.2 apart) is dominant, and
+   travel breaks near-ties. 12 of 246 picks changed (tree, doll, nose, orange,
+   icecream, chin, finger, taste, dry, boat, farm, weus). As a side effect the
+   presence floor now rejects **2** signs, not 16, because presence is now
+   measured on the tracked hand.
+
+### Build output (after all three fixes)
+
+```
+no clip for 4 labels: no please pretty scissors
+left out 2 signs with hands seen in < 30% of frames: minemy yourself
+254 words from 244 PopSign signs -> lexicon\popsign
+average sign length 2.8 s -> 2.3 s after trimming
+use it:  ASLYTICS_LEXICON_DIR=lexicon\popsign
+```
+
+Trimmed sign lengths: **median 2.12 s**, p90 4.09 s, max 7.38 s; **54 of 254
+over 3 s**.
+
+### Tests
+
+`test_popsign_lexicon.py` 10/10, `test_pipeline_env.py` 10/10,
+`test_renderer.py` 11/11, `test_concatenate_fps.py` 3/3,
+`test_gloss_parse.py` 4/4.
+
+### `run_demo.py` output (verbatim, filtered as before; cache cleared first)
+
+```
+the dog is hungry
+  signed:  dog hungry
+  video:   C:\Users\tjsin\Documents\Main-prototype\.work\demo\demo_0.mp4  (12.7 s)
+
+my cat likes milk
+  signed:  cat milk like
+  skipped: my
+  video:   C:\Users\tjsin\Documents\Main-prototype\.work\demo\demo_1.mp4  (12.6 s)
+
+where is the blue book?
+  signed:  blue book where
+  video:   C:\Users\tjsin\Documents\Main-prototype\.work\demo\demo_2.mp4  (12.3 s)
+
+please drink water
+  signed:  water drink
+  skipped: please
+  video:   C:\Users\tjsin\Documents\Main-prototype\.work\demo\demo_3.mp4  (12.7 s)
+
+the frog is green
+  signed:  frog green
+  video:   C:\Users\tjsin\Documents\Main-prototype\.work\demo\demo_4.mp4  (12.9 s)
+
+grandma and grandpa are happy
+  signed:  grandma grandpa happy
+  skipped: and
+  video:   C:\Users\tjsin\Documents\Main-prototype\.work\demo\demo_5.mp4  (12.1 s)
+
+the girl likes pizza and ice cream
+  signed:  pizza girl like
+  skipped: and ice cream
+  video:   C:\Users\tjsin\Documents\Main-prototype\.work\demo\demo_6.mp4  (12.8 s)
+
+yesterday the boy saw a yellow bird in the tree
+  signed:  yellow yesterday boy bird tree see
+  video:   C:\Users\tjsin\Documents\Main-prototype\.work\demo\demo_7.mp4  (13.8 s)
+
+it is hot outside, go to the pool
+  signed:  pool outside go hot
+  video:   C:\Users\tjsin\Documents\Main-prototype\.work\demo\demo_8.mp4  (13.0 s)
+
+thank you for the gift
+  signed:  gift thank
+  skipped: you
+  video:   C:\Users\tjsin\Documents\Main-prototype\.work\demo\demo_9.mp4  (13.1 s)
+
+10/10 sentences rendered; 30 words signed, 7 skipped.
+```
+
+Video lengths (the "(N s)" above is generation time, not video length):
+demo_0 6.2, demo_1 5.3, demo_2 4.1, demo_3 4.1, demo_4 3.3, demo_5 4.7,
+demo_6 5.3, **demo_7 12.5 (was 28.0)**, demo_8 8.8, demo_9 7.0 s. No frozen
+frames in any.
+
+### Your four questions (contact sheets of demo_0 and demo_7; TREE is the two-handed sign)
+
+1. **Is each sign roughly 1–2 s?** Mostly: median 2.1 s. But 54 signs are
+   over 3 s. DOG is 5.05 s untrimmed: raise, ~3.5 s at the shoulder with
+   finger movement (repeated snaps), lower. Hand-shape change keeps the whole
+   hold "active", so the trim correctly keeps it.
+2. **Is any sign cut off mid-movement?** None seen. HUNGRY's raw clip is only
+   1.2 s (hand rises from rest to head height and holds), so nothing was cut.
+   DOG's start is intact.
+3. **Is the reach-for-the-phone tail gone?** My earlier diagnosis was
+   **wrong**. The hand rising to head height at the end of demo_0 is the
+   *whole* HUNGRY clip, not a tail. It doesn't match the usual description of
+   HUNGRY (C-hand moving down the chest), so treat it as a questionable pick,
+   not a trim problem.
+4. **Does any handedness flip remain?** Not in demo_7 after fix 3. Every sign
+   is on the figure's right. TREE now shows as a one-handed raised hand,
+   consistent with PopSign's one-handed recordings.
+
+### On the trim thresholds
+
+I see no sign cut mid-movement, so I **don't** suggest loosening it. It errs
+long rather than short. The long signs are real holds or repetitions, not
+idle. Capping repetitions (e.g. DOG's snaps) would need sign-specific
+knowledge; I'd leave it for a signer's review. Not tuned against the old
+lexicon.
+
+---
+
 ## Prototype run: done (2026-09-30 ~04:10 UTC)
 
 **Verdict: it works end to end, the signs are placed plausibly, but it is
