@@ -1,7 +1,7 @@
 # Environment: the Flask layer (app.py, server.py, merge_asl_clips.py).
 #
-# The gloss and pose steps run in their own conda environments -- see
-# install.sh -- because they need conflicting versions of torch and numpy.
+# The gloss and pose halves can share one environment (the default .venv
+# from install.sh) or use separate conda environments (install.sh --conda).
 
 flask>=3.0
 flask-cors>=4.0

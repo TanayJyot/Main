@@ -33,6 +33,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import sys
 import threading
 import time
@@ -124,9 +125,11 @@ class RenderService:
         """
         if not os.path.isdir(self.lexicon_directory):
             return set()
-        return {os.path.splitext(name)[0]
-                for name in os.listdir(self.lexicon_directory)
-                if name.endswith(".pose")}
+        stems = {os.path.splitext(name)[0]
+                 for name in os.listdir(self.lexicon_directory)
+                 if name.endswith(".pose")}
+        # bake_1.pose and bake_2.pose make "bake" renderable too; see _path_for.
+        return stems | {re.sub(r"_\d+$", "", stem) for stem in stems}
 
     def missing_from(self, glosses: Iterable[str]) -> List[str]:
         available = self.available_glosses()
@@ -144,13 +147,32 @@ class RenderService:
         if cached is not None:
             return cached
 
-        path = os.path.join(self.lexicon_directory, f"{gloss}.pose")
-        if not os.path.exists(path):
+        path = self._path_for(gloss)
+        if path is None:
             raise MissingGlosses([gloss], self.lexicon_directory)
 
         pose = load_pose(path)
         self._poses.put(gloss, pose)
         return pose
+
+    def _path_for(self, gloss: str) -> Optional[str]:
+        """The .pose file for a gloss: exact name, else its lowest-numbered variant.
+
+        The old lexicon stores some words only as numbered variants (bake_1,
+        bake_2) with no plain bake.pose, so an exact-name lookup reported
+        those words missing even though they were there. Taking the
+        lowest-numbered variant is the same rule coverage.py uses.
+        """
+        exact = os.path.join(self.lexicon_directory, f"{gloss}.pose")
+        if os.path.exists(exact):
+            return exact
+        variants = []
+        prefix = f"{gloss}_"
+        for name in os.listdir(self.lexicon_directory) if os.path.isdir(self.lexicon_directory) else []:
+            stem, ext = os.path.splitext(name)
+            if ext == ".pose" and stem.startswith(prefix) and stem[len(prefix):].isdigit():
+                variants.append((int(stem[len(prefix):]), name))
+        return os.path.join(self.lexicon_directory, min(variants)[1]) if variants else None
 
     def warm(self, glosses: Iterable[str]) -> int:
         """Preload poses. Returns how many are now resident."""
