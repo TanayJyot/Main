@@ -147,6 +147,8 @@ def fetch_popsign(signs: list[str], per_signer: int = 1, max_signers: int = 12) 
         dest.mkdir(parents=True, exist_ok=True)
         by_signer: dict[str, list] = defaultdict(list)
         for split in ["train", "val"]:
+            if len(by_signer) >= max_signers:
+                break  # train alone already has enough signers
             url = POPSIGN_URL.format(split=split, sign=sign)
             try:
                 members = tar_members(url)
@@ -166,7 +168,7 @@ def fetch_popsign(signs: list[str], per_signer: int = 1, max_signers: int = 12) 
 
     # Labels in parallel: listing a tar is one small request per member, so a
     # single label is latency-bound.
-    with ThreadPoolExecutor(6) as pool:
+    with ThreadPoolExecutor(16) as pool:
         list(pool.map(one, signs))
 
 

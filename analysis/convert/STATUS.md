@@ -4,6 +4,17 @@ Channel for the cloud session on `claude/lexicon-eval`. Newest entry first.
 
 ---
 
+## Prototype run: started (2026-09-30 01:50 UTC)
+
+PopSign only, per the new plan; the ASL Citizen conversion is stopped (files
+kept, nothing deleted). **~1,400 PopSign clips** (250 labels, <= 6 signers,
+`non-game/train` then `val` only if train has fewer than 6 signers):
+59 labels downloaded, 306 clips ready to convert now. **ETA ~2 h**, bound by
+the download (one Range request per tar entry). Conversion runs as labels
+finish.
+
+---
+
 ## Licence check, 2026-09-30 (read-only; only the 1.9 MB MS-ASL zip downloaded, nothing committed)
 
 ### 1. Hugging Face `akasheroor/American-Sign-Language-Dataset`: MIT tag is not credible

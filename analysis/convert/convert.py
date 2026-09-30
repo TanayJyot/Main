@@ -16,6 +16,7 @@ data/pose/failed.txt and do not stop the run.
 
 Usage:
     python convert.py [--workers N]
+    python convert.py --popsign-only --max-signers 6        (prototype)
 """
 
 from __future__ import annotations
@@ -35,12 +36,27 @@ DATA = HERE / "data"
 SPEC = HERE.parent / "old_lexicon_pose_spec.json"
 
 
-def jobs() -> list[tuple[Path, Path]]:
+def popsign_clips(max_signers: int | None = None) -> list[Path]:
+    """PopSign clips on disk; with max_signers, only each label's first
+    max_signers signers in ID order (the prototype's content-blind cap)."""
+    from fetch import signer
+
     out = []
-    for name in sorted(citizen_candidates()):
-        mp4 = DATA / "aslc" / "videos" / name
-        out.append((mp4, DATA / "pose" / "aslc" / (mp4.stem + ".pose")))
-    for mp4 in sorted((DATA / "popsign").glob("*/*.mp4")):
+    # Only labels whose download finished: fetch.py writes .done last.
+    for label_dir in sorted(p for p in (DATA / "popsign").iterdir() if (p / ".done").exists()):
+        clips = sorted(label_dir.glob("*.mp4"))
+        keep = sorted({signer(c.name) for c in clips})[:max_signers]
+        out += [c for c in clips if signer(c.name) in keep]
+    return out
+
+
+def jobs(popsign_only: bool = False, max_signers: int | None = None) -> list[tuple[Path, Path]]:
+    out = []
+    if not popsign_only:
+        for name in sorted(citizen_candidates()):
+            mp4 = DATA / "aslc" / "videos" / name
+            out.append((mp4, DATA / "pose" / "aslc" / (mp4.stem + ".pose")))
+    for mp4 in popsign_clips(max_signers):
         out.append((mp4, DATA / "pose" / "popsign" / mp4.parent.name / (mp4.stem + ".pose")))
     return [(src, dst) for src, dst in out if not dst.exists()]
 
@@ -69,9 +85,11 @@ def check_spec(pose_path: Path, expected: list[tuple[str, int, str]]) -> str | N
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 2))
+    ap.add_argument("--popsign-only", action="store_true")
+    ap.add_argument("--max-signers", type=int, default=None)
     args = ap.parse_args()
 
-    todo = jobs()
+    todo = jobs(args.popsign_only, args.max_signers)
     print(f"{len(todo)} clips to convert with {args.workers} workers", flush=True)
     failed = []
     with ProcessPoolExecutor(args.workers) as pool:
