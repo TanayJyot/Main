@@ -10,7 +10,9 @@ word (`callonphone` is signed for "call", `hesheit` for "he", "she", "it").
     python prototype/popsign_lexicon.py words > prototype/WORDS.md
 
 `--labels` is a directory of `<label>.pose`, one chosen clip per PopSign label,
-already mirrored to right-hand dominant. The laptop's analysis/convert/
+already mirrored to right-hand dominant. Each sign is trimmed to the stretch
+where the hands move (prototype/trim.py), and signs whose hands were barely
+tracked are left out rather than shown wrongly. The laptop's analysis/convert/
 scripts produce it: selection is by hand-landmark presence, fixed before any
 clip was seen and never by comparison with the old lexicon.
 
@@ -25,7 +27,6 @@ import argparse
 import csv
 import json
 import re
-import shutil
 import sys
 from pathlib import Path
 from typing import Dict, List
@@ -86,17 +87,35 @@ def word_table() -> Dict[str, str]:
     return table
 
 
-def build(labels_dir: Path, out_dir: Path) -> Dict[str, object]:
+# A sign whose hands were detected in fewer frames than this is left out
+# rather than shown: the renderer would draw a stub, and which hand is
+# dominant would be a guess (PopSign's TREE, seen in 1.5% of frames, came out
+# mirrored mid-sentence). Content-blind: it looks at tracking quality only.
+MIN_PRESENCE = 0.3
+
+
+def build(labels_dir: Path, out_dir: Path, trim: bool = True,
+          min_presence: float = MIN_PRESENCE) -> Dict[str, object]:
+    """Write the lexicon. With trim, each sign is cut to its signing (trim.py)
+    and signs whose hands were barely tracked are rejected; without it, files
+    are copied as they are."""
     out_dir.mkdir(parents=True, exist_ok=True)
-    built, missing = {}, []
+    built, missing, rejected, seconds = {}, [], {}, {}
     for label in popsign_labels():
         source = next((path for path in (labels_dir / f"{label}.pose",
                                          labels_dir / f"{label.lower()}.pose") if path.exists()), None)
         if source is None:
             missing.append(label)
             continue
+        data = source.read_bytes()
+        if trim:
+            data, presence, before, after = _prepare(data)
+            if presence < min_presence:
+                rejected[label] = round(presence, 3)
+                continue
+            seconds[label] = [before, after]
         for word in glosses_for(label):
-            shutil.copyfile(source, out_dir / f"{word}.pose")
+            (out_dir / f"{word}.pose").write_bytes(data)
             built[word] = label
 
     (out_dir / "ATTRIBUTION.txt").write_text(ATTRIBUTION, encoding="utf-8")
@@ -105,11 +124,31 @@ def build(labels_dir: Path, out_dir: Path) -> Dict[str, object]:
         "license": "CC BY 4.0",
         "words": dict(sorted(built.items())),
         "labels_missing": missing,
+        "labels_rejected_low_hand_presence": rejected,
+        "min_presence": min_presence if trim else None,
+        "seconds_before_after_trim": seconds,
     }
     (out_dir / "lexicon.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     # Keep derived signs out of git even if the directory sits inside the repo.
     (out_dir / ".gitignore").write_text("*\n", encoding="utf-8")
     return manifest
+
+
+def _prepare(data: bytes):
+    """(trimmed .pose bytes, hand presence in the kept window, seconds before, after)."""
+    from io import BytesIO
+
+    from pose_format import Pose
+
+    import trim as trimming
+
+    pose = Pose.read(data)
+    fps = float(pose.body.fps) or 30.0
+    pose, before, after = trimming.trim_to_signing(pose)
+    buffer = BytesIO()
+    pose.write(buffer)
+    return (buffer.getvalue(), trimming.hand_presence(pose),
+            round(before / fps, 2), round(after / fps, 2))
 
 
 # -- the word list --------------------------------------------------------------
@@ -199,6 +238,10 @@ def main() -> int:
     b = sub.add_parser("build", help="Build the lexicon from converted PopSign clips")
     b.add_argument("--labels", required=True, type=Path, help="Directory of <label>.pose")
     b.add_argument("--out", type=Path, default=REPO_ROOT / "lexicon" / "popsign")
+    b.add_argument("--no-trim", action="store_true",
+                   help="Copy clips as they are: no motion trim, no presence floor")
+    b.add_argument("--min-presence", type=float, default=MIN_PRESENCE,
+                   help=f"Reject signs whose hands were seen in fewer frames (default {MIN_PRESENCE})")
     sub.add_parser("words", help="Print the word list as Markdown")
     args = parser.parse_args()
 
@@ -208,12 +251,21 @@ def main() -> int:
 
     if not args.labels.is_dir():
         parser.error(f"no such directory: {args.labels}")
-    manifest = build(args.labels, args.out)
-    print(f"{len(manifest['words'])} words from {len(popsign_labels()) - len(manifest['labels_missing'])} "
-          f"PopSign signs -> {args.out}")
+    manifest = build(args.labels, args.out, trim=not args.no_trim, min_presence=args.min_presence)
+    signs = len(set(manifest["words"].values()))
+    print(f"{len(manifest['words'])} words from {signs} PopSign signs -> {args.out}")
     if manifest["labels_missing"]:
         print(f"no clip for {len(manifest['labels_missing'])} labels: "
               f"{' '.join(manifest['labels_missing'])}", file=sys.stderr)
+    rejected = manifest["labels_rejected_low_hand_presence"]
+    if rejected:
+        print(f"left out {len(rejected)} signs with hands seen in < {args.min_presence:.0%} of frames: "
+              f"{' '.join(rejected)}", file=sys.stderr)
+    timings = manifest["seconds_before_after_trim"].values()
+    if timings:
+        before = sum(t[0] for t in timings) / len(timings)
+        after = sum(t[1] for t in timings) / len(timings)
+        print(f"average sign length {before:.1f} s -> {after:.1f} s after trimming")
     print(f"use it:  ASLYTICS_LEXICON_DIR={args.out}")
     return 0
 

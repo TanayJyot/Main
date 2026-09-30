@@ -125,8 +125,6 @@ def generate_with_report(sentence: str, output_name: str, glosses: Optional[List
         shutil.copy2(final, published)
 
     report = _last_json(result.stdout)
-    if report.get("skipped"):
-        print(f"  skipped (no sign in the lexicon): {' '.join(report['skipped'])}")
     return {"video": published, "glosses": report.get("glosses", []),
             "skipped": report.get("skipped", [])}
 
@@ -176,11 +174,13 @@ def main() -> int:
 
     print(f"Generating ASL video for: {args.sentence or ' '.join(glosses)}")
     try:
-        path = generate(args.sentence, args.output, glosses, args.skip_missing)
+        report = generate_with_report(args.sentence, args.output, glosses, args.skip_missing)
     except GenerationError as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
-    print(f"Final video: {path}")
+    if report["skipped"]:
+        print(f"Skipped (no sign in the lexicon): {' '.join(report['skipped'])}")
+    print(f"Final video: {report['video']}")
     return 0
 
 

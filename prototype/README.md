@@ -64,6 +64,14 @@ python utils/generate_asl_video.py --words
   signs SEE BIRD. That is the existing gloss step, not the lexicon.
 - **One signer per sign, chosen automatically.** The selection rule looks only
   at hand-landmark quality, never at the old lexicon.
+- **Signs are trimmed to the moving part.** PopSign signers hold the hand up
+  for the whole recording, so without this each sign lasted 4–5 s. `build`
+  keeps only the stretch where the hands move (`trim.py`).
+- **Badly tracked signs are left out.** A sign whose hands were detected in
+  under 30% of frames is skipped instead of shown wrongly
+  (`--min-presence`). It is listed in `lexicon.json`.
+- **Two-handed signs look one-handed.** PopSign was filmed on a phone held in
+  one hand. That is a limit of the data.
 
 ## Licence obligations
 

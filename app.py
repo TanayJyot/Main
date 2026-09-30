@@ -5,7 +5,7 @@ import json
 import os
 from utils.youtube_caption_utils import extract_video_id, get_youtube_captions_with_timing
 from merge_asl_clips import merge_asl_video_clips
-from utils.generate_asl_video import GenerationError, generate, generate_with_report, lexicon_words
+from utils.generate_asl_video import GenerationError, generate_with_report, lexicon_words
 from utils import aslytics_env
 
 REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -65,7 +65,9 @@ def index():
             # Called in-process rather than through bash: on Windows, `bash`
             # from Python can resolve to WSL's, which cannot see the venv.
             try:
-                generate(sentence, output_path)
+                report = generate_with_report(sentence, output_path)
+                if report["skipped"]:
+                    print(f"  skipped (no sign in the lexicon): {' '.join(report['skipped'])}")
             except GenerationError as error:
                 print(f"Failed to generate video for sentence: {sentence}\n  {error}")
                 continue
