@@ -4,6 +4,156 @@ Channel for the cloud session on `claude/lexicon-eval`. Newest entry first.
 
 ---
 
+## Prototype run: done (2026-09-30 ~04:10 UTC)
+
+**Verdict: it works end to end, the signs are placed plausibly, but it is
+too slow to read and some picks are bad data.** Details below. Not reviewed by
+a signer.
+
+### Lexicon
+
+- 1,289 PopSign clips converted (<= 6 signers per label, `non-game/train`,
+  `val` only when train had fewer than 6), 0 failures, 0 spec mismatches.
+- `lexicon.json`: **257 words from 246 signs**. `labels_missing`: **no,
+  please, pretty, scissors** (no non-game clips at all).
+- 94 of 246 picks were mirrored (38%). Far more than left-handedness would
+  explain; most likely signers holding the phone in the right hand.
+- **Weak picks:** 32 labels whose best clip has hand presence < 0.3 (bad, bath,
+  brother, can, chin, dad, dance, doll, dry, farm, finger, giraffe, go, hide,
+  icecream, into, minemy, morning, nose, on, orange, pig, puzzle, shoe, sleep,
+  taste, that, time, tree, weus, white, yourself). Minimum is 0.0.
+
+### Tests
+
+`test_popsign_lexicon.py` 6/6, `test_pipeline_env.py` 10/10,
+`test_gloss_parse.py` 4/4 (new, see below). `aslytics_env.py` prints `ready`.
+
+### `run_demo.py` output (verbatim; MediaPipe/TF log lines filtered)
+
+```
+the dog is hungry
+  signed:  dog hungry
+  video:   C:\Users\tjsin\Documents\Main-prototype\.work\demo\demo_0.mp4  (15.8 s)
+
+my cat likes milk
+  signed:  cat milk my like
+  video:   C:\Users\tjsin\Documents\Main-prototype\.work\demo\demo_1.mp4  (10.1 s)
+
+where is the blue book?
+  signed:  blue book where
+  video:   C:\Users\tjsin\Documents\Main-prototype\.work\demo\demo_2.mp4  (10.1 s)
+  skipped (no sign in the lexicon): please
+
+please drink water
+  signed:  water drink
+  skipped: please
+  video:   C:\Users\tjsin\Documents\Main-prototype\.work\demo\demo_3.mp4  (11.2 s)
+
+the frog is green
+  signed:  frog green
+  video:   C:\Users\tjsin\Documents\Main-prototype\.work\demo\demo_4.mp4  (9.8 s)
+  skipped (no sign in the lexicon): and
+
+grandma and grandpa are happy
+  signed:  grandma grandpa happy
+  skipped: and
+  video:   C:\Users\tjsin\Documents\Main-prototype\.work\demo\demo_5.mp4  (12.4 s)
+  skipped (no sign in the lexicon): and ice cream
+
+the girl likes pizza and ice cream
+  signed:  pizza girl like
+  skipped: and ice cream
+  video:   C:\Users\tjsin\Documents\Main-prototype\.work\demo\demo_6.mp4  (10.1 s)
+
+yesterday the boy saw a yellow bird in the tree
+  signed:  yellow yesterday boy bird tree see
+  video:   C:\Users\tjsin\Documents\Main-prototype\.work\demo\demo_7.mp4  (12.5 s)
+
+it is hot outside, go to the pool
+  signed:  pool outside go hot
+  video:   C:\Users\tjsin\Documents\Main-prototype\.work\demo\demo_8.mp4  (10.8 s)
+  skipped (no sign in the lexicon): you
+
+thank you for the gift
+  signed:  gift thank
+  skipped: you
+  video:   C:\Users\tjsin\Documents\Main-prototype\.work\demo\demo_9.mp4  (9.8 s)
+
+10/10 sentences rendered; 31 words signed, 6 skipped.
+```
+
+Total wall time 1 m 53 s for 10 sentences, about 10-16 s each. Most of that
+is loading Stanza (~27 s) and rendering, not signing.
+
+### What the videos look like (contact sheets of demo_0, demo_1, demo_7, plus "all animals are bad")
+
+- **Good:** continuous motion, 0 frozen frames, no jumps at sign boundaries.
+  Dominant hand is consistently on the figure's right, except below. Sign
+  locations match the usual descriptions: BAD goes chin then down; ANIMAL is a
+  claw at the chest; DOG is at the shoulder.
+- **Too slow to read:** ~4-5 s per sign. `demo_7` (6 signs) is **28 s**.
+  Cause: `concatenate.trim_pose()` keeps frames where wrist is above elbow,
+  but PopSign signers keep the signing hand up the whole clip (phone in the
+  other hand), so **nothing is trimmed**. Verified: animal 190 → 190 frames,
+  bad 137 → 137. Clip tails include non-sign movement. At the end of
+  `demo_0` the hand reaches above the head, probably reaching for the phone.
+  **Fix needed:** a motion-based trim (keep frames where the dominant wrist
+  moves), for PopSign at least.
+- **Handedness flips mid-sentence on TREE** (`demo_7`, 16-25 s). TREE's only
+  candidate has hand presence 0.015, so my dominance rule guessed from almost
+  no data and mirrored it wrongly. **Fix needed (mine):** a minimum-presence
+  floor. A label whose best clip is below it should be treated as missing,
+  not shipped. Proposed 0.3: content-blind, but drops the 32 labels above.
+  Your call.
+- **One-handed signs only:** PopSign is phone-selfie data. Two-handed signs
+  (ANIMAL, TREE) appear one-handed or with a partial second hand. The
+  non-dominant arm is often a stub. Dataset limitation.
+
+### `/sentence` page
+
+`ASLYTICS_LEXICON_DIR=lexicon/popsign ASLYTICS_SKIP_MISSING=1 python app.py`:
+GET shows the credit **"PopSign ASL v1.0 (CC BY 4.0)"**. POST "the cat is
+happy" returned a page with `<video>` (served 200 `video/mp4`, 876 KB),
+"Signed: cat happy", in **11.5 s**. The YouTube page `/` was **not tried**: it
+renders every caption of a video, which is minutes of work, and
+`youtube_transcript_api` is the scraping concern from HANDOFF.
+
+### Fixes
+
+1. **Pushed to `claude/popsign-prototype` @ 07798a3: stanfordnlp → Stanza.**
+   stanfordnlp 0.2.0 cannot run on Python 3.10+:
+   - torch 2.14: models fail to load ("Vector file is not provided"; the real
+     cause is `torch.load` weights_only).
+   - torch 2.5.1: `masked_fill_ only supports boolean masks, but got mask with
+     dtype unsigned char` (depparse).
+   - torch 1.13.1: some sentences work, others crash in the lemmatiser:
+     `index_select(): Expected dtype int32 or int64 for index`.
+
+   Stanza 1.14 (Apache-2.0, same EWT models) with torch 2.14 works. `start.py`
+   changes only field names (id/head/deprel), and the gloss rules are
+   untouched. New `tools/tests/test_gloss_parse.py`. Models now download from
+   huggingface.co, **which your container blocks**; the command is in
+   requirements.txt / README / install.sh.
+2. **Needed, not done:** motion-based trim (above).
+3. **Needed, not done (mine):** presence floor in `select_clips.py`
+   (above).
+4. **Small:** `run_demo.py` prints the "skipped (no sign in the lexicon)" line
+   under the *previous* sentence: stderr is unbuffered, stdout is not.
+5. **Small:** the repo tracks 8 `.pyc` files. Running `app.py` modifies two
+   of them (`__pycache__/merge_asl_clips.cpython-310.pyc`,
+   `utils/__pycache__/youtube_caption_utils.cpython-310.pyc`). Restored before
+   committing; they should be untracked.
+6. `stanfordnlp.download()` prompts interactively (moot after the swap).
+
+### Environment
+
+Prototype run from a separate worktree (`Documents/Main-prototype`) with its
+own `.venv`: torch 2.14 CPU, stanza 1.14, mediapipe 0.10.21 (unchanged),
+numpy 1.26.4. No GPU: pip MediaPipe's Holistic is CPU-only on every platform.
+The exported label folder is at `Documents/popsign_labels`, outside git.
+
+---
+
 ## Prototype run: started (2026-09-30 01:50 UTC)
 
 PopSign only, per the new plan; the ASL Citizen conversion is stopped (files
