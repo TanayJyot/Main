@@ -23,7 +23,7 @@ gloss and stitching them (`concatenate.py`), then rendering a stick figure with
 
 | # | Blocker | Status |
 |---|---|---|
-| — | ASLytics code is CC BY-NC-SA 4.0 | **Resolved.** The user reports approval from the original authors. Not yet recorded in `DATA_LICENSES.md`; ask the human for who, when and scope (section 6) |
+| — | ASLytics code is CC BY-NC-SA 4.0 | **Resolved.** Owned by Japleen Kaur, who can relicense it. Recorded in `DATA_LICENSES.md` 2026-09-29 |
 | 1 | **The sign lexicon.** 842 `.pose` files scraped from ASL Signbank (CC BY-NC-SA 4.0) and Signing Savvy (paid site, ToS forbids scraping) | **Open. This is the job.** Measurement done; baseline built; replacement not started |
 | 2 | GPL-3.0 in `text-to-gloss/start.py` | Open, a business decision, not a blocker. Out of scope unless asked |
 | 3 | SHHQ behind `pose-to-video` | **Not real.** Nothing photorealistic was ever trained; `pose-to-video==0.0.1` is only a dead pin at `pose-master/pose-master/requirements.txt:64` |
@@ -102,9 +102,25 @@ python analysis/baseline/build_baseline.py        # writes analysis/baseline/out
 
 ## 4. Tasks, in order
 
+### Who is doing what (2026-09-29)
+
+Two agents are working this in parallel. The user asked them to coordinate directly.
+
+| Agent | Where | Branch | Tasks | Paths it owns |
+|---|---|---|---|---|
+| Cloud session | claude.ai container: no GPU, ~20 GB disk, no conda/ffmpeg; PopSign, `nlp.stanford.edu` and `huggingface.co` blocked | `claude/lexicon-eval` | 1, 2, 4 | `analysis/mapping/`, `analysis/eval/`, `DATA_LICENSES.md`, `HANDOFF.md` |
+| Remote-control session ("Claude agent experiments") | The user's GPU machine | `claude/lexicon-convert` | 3, 5 | `analysis/convert/` |
+
+The remote agent reports status in `analysis/convert/STATUS.md` on its branch.
+Commits only, no force-push, and neither agent edits the other's paths.
+
+The user has emailed Microsoft about ASL Citizen commercial use. There is no
+reply yet, so ASL Citizen remains evaluation-only.
+
+
 Each is doable without the email and without a signer.
 
-**1. Drop the dead `pose-to-video` pin.** Delete line 64 of
+**1. ✅ Done 2026-09-29 on `claude/lexicon-eval`. Drop the dead `pose-to-video` pin.** Delete line 64 of
 `pose-master/pose-master/requirements.txt` and update `DATA_LICENSES.md` §2
 and §6 to say SHHQ was never in the product (§2a already half-says it).
 Also correct the "~4,400 signs" figure to 842 wherever it appears. Small, and it
