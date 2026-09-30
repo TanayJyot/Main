@@ -9,12 +9,13 @@ lexicon's content:
                  were detected
   tie-breaks     mean visibility of the dominant wrist, then filename
 
-Per gloss, the best clip of each source is found. The one marked `selected`
-(the clip that represents the gloss) is PopSign's when PopSign has the gloss,
-because PopSign is CC BY 4.0 and ASL Citizen is evaluation-only until Microsoft
-replies. Every other clip is `calibration`: same sign, other signers, for
-calibrate.py's same-sign-different-signer distances (capped per source so one
-gloss does not dominate).
+Per gloss, the best clip of each source is `selected` (so calibrate.py scores
+PopSign and ASL Citizen separately). The one that goes into the mixed lexicon
+(`in_lexicon=1`) is PopSign's when PopSign has the gloss, because PopSign is
+CC BY 4.0 and ASL Citizen is evaluation-only until Microsoft replies. Every
+other clip is `calibration`: same sign, other signers, for calibrate.py's
+same-sign-different-signer distances (one clip per signer, capped per source
+so one gloss does not dominate).
 
 Left-dominant selections are mirrored to right-dominant: x is reflected, and
 left/right hand components and LEFT_*/RIGHT_* body points are swapped. Face
@@ -29,6 +30,7 @@ Outputs (gitignored):
 
 Usage:
     ASLYTICS_LEXICON_DIR=<old lexicon> python select_clips.py
+    python select_clips.py --popsign-export <dir> [--max-signers 6]   (prototype)
 """
 
 from __future__ import annotations
@@ -124,7 +126,56 @@ def candidates(gloss: str, labels: dict, signers: dict) -> list[dict]:
     return out
 
 
+def export_popsign(out_dir: Path, max_signers: int) -> None:
+    """The PopSign-only prototype: one <label>.pose per PopSign label, exact
+    label spelling from popsign_glosses.txt. Same rule and mirroring as the
+    pilot selection; candidates are the first max_signers signers (ID order)
+    fetched by `fetch.py --popsign-all`. No old-lexicon input at all."""
+    from fetch import signer
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    labels = [l.strip() for l in (HERE.parent / "coverage" / "popsign_glosses.txt")
+              .read_text(encoding="utf8").splitlines() if l.strip()]
+    key = lambda c: (-c["presence"], -c["visibility"], c["path"].name)  # noqa: E731
+    report, missing = {}, []
+    for label in labels:
+        by_signer: dict[str, list[Path]] = defaultdict(list)
+        for p in sorted((DATA / "pose" / "popsign" / label).glob("*.pose")):
+            by_signer[signer(p.name)].append(p)
+        paths = [sorted(v)[0] for _, v in sorted(by_signer.items())][:max_signers]
+        scored = []
+        for p in paths:
+            try:
+                scored.append({"path": p, **score(Pose.read(p.read_bytes()))})
+            except Exception as e:  # noqa: BLE001 - an unreadable clip is skipped
+                print(f"  skip {p.name}: {e}")
+        if not scored:
+            missing.append(label)
+            continue
+        best = min(scored, key=key)
+        pose = Pose.read(best["path"].read_bytes())
+        if best["dominant"] == "LEFT":
+            pose = mirror(pose)
+        with open(out_dir / f"{label}.pose", "wb") as f:
+            pose.write(f)
+        report[label] = {"clip": best["path"].name, "signer": signer(best["path"].name),
+                         "mirrored": best["dominant"] == "LEFT", "presence": round(best["presence"], 3),
+                         "candidates": len(scored)}
+    (out_dir / "selection.json").write_text(json.dumps({"selected": report, "missing": missing}, indent=1),
+                                            encoding="utf8")
+    print(f"PopSign export: {len(report)} labels written to {out_dir}; missing {len(missing)}: {missing}")
+
+
 def main() -> None:
+    import argparse
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--popsign-export", default="", help="write one <label>.pose per PopSign label here")
+    ap.add_argument("--max-signers", type=int, default=6)
+    args = ap.parse_args()
+    if args.popsign_export:
+        export_popsign(Path(args.popsign_export), args.max_signers)
+        return
     old_dir = Path(os.environ.get("ASLYTICS_LEXICON_DIR", ""))
     if not old_dir.is_dir():
         raise SystemExit("set ASLYTICS_LEXICON_DIR to the old lexicon (used only to fill gaps)")
@@ -161,7 +212,7 @@ def main() -> None:
 
         per_source = defaultdict(int)
         for c in sorted(scored, key=key):
-            role = "selected" if c is chosen else "calibration"
+            role = "selected" if c is best[c["source"]] else "calibration"
             if role == "calibration":
                 # One clip per signer, capped per source.
                 if per_source[c["source"]] >= CALIBRATION_PER_SOURCE or any(
@@ -170,7 +221,7 @@ def main() -> None:
                 per_source[c["source"]] += 1
             rows.append({"path": str(c["path"].resolve()), "concept": labels["concept"], "source": c["source"],
                          "label": c["label"], "signer": c["signer"], "role": role, "gloss": gloss,
-                         "source_best": int(c is best[c["source"]]), "dominant": c["dominant"],
+                         "in_lexicon": int(c is chosen), "dominant": c["dominant"],
                          "presence": round(c["presence"], 3), "visibility": round(c["visibility"], 3),
                          "label_rule": labels["rule"][c["source"]]})
         summary[gloss] = {"source": chosen["source"], "label": chosen["label"], "clip": chosen["path"].name,

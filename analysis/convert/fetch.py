@@ -20,6 +20,7 @@ lands in data/, which is gitignored. Re-running skips what is already there.
 
 Usage:
     python fetch.py [--aslc] [--popsign]      (default: both)
+    python fetch.py --popsign-all --max-signers 6
 """
 
 from __future__ import annotations
@@ -97,8 +98,8 @@ def retry(fn, attempts: int = 6):
     for attempt in range(attempts):
         try:
             return fn()
-        except Exception:  # noqa: BLE001 - re-raised on the last attempt
-            if attempt == attempts - 1:
+        except Exception as e:  # noqa: BLE001 - re-raised on the last attempt
+            if getattr(e, "code", None) == 404 or attempt == attempts - 1:
                 raise
             time.sleep(2 ** attempt)
 
@@ -137,11 +138,12 @@ def fetch_popsign(signs: list[str], per_signer: int = 1, max_signers: int = 12) 
     list each tar remotely and pull the first clip (by filename) per signer,
     up to max_signers signers per gloss: ~1.5 GB. The rule never looks at clip
     content, so it cannot bias selection."""
-    print(f"PopSign: {len(signs)} labels")
-    for sign in signs:
+    print(f"PopSign: {len(signs)} labels, <= {max_signers} signers each")
+
+    def one(sign: str) -> None:
         dest = DATA / "popsign" / sign
         if (dest / ".done").exists():
-            continue
+            return
         dest.mkdir(parents=True, exist_ok=True)
         by_signer: dict[str, list] = defaultdict(list)
         for split in ["train", "val"]:
@@ -162,12 +164,25 @@ def fetch_popsign(signs: list[str], per_signer: int = 1, max_signers: int = 12) 
         (dest / ".done").touch()
         print(f"  {sign}: {len(by_signer)} signers, kept {len(chosen)}", flush=True)
 
+    # Labels in parallel: listing a tar is one small request per member, so a
+    # single label is latency-bound.
+    with ThreadPoolExecutor(6) as pool:
+        list(pool.map(one, signs))
+
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--aslc", action="store_true")
     ap.add_argument("--popsign", action="store_true")
+    ap.add_argument("--popsign-all", action="store_true",
+                    help="every PopSign label, not just the pilot ones (the PopSign-only prototype)")
+    ap.add_argument("--max-signers", type=int, default=12)
     args = ap.parse_args()
+    if args.popsign_all:
+        glosses = HERE.parent / "coverage" / "popsign_glosses.txt"
+        fetch_popsign([l.strip() for l in glosses.read_text(encoding="utf8").splitlines() if l.strip()],
+                      max_signers=args.max_signers)
+        return
     both = not (args.aslc or args.popsign)
     cands = candidate_labels().values()
     if args.popsign or both:

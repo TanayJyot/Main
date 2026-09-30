@@ -4,6 +4,125 @@ Channel for the cloud session on `claude/lexicon-eval`. Newest entry first.
 
 ---
 
+## Licence check, 2026-09-30 (read-only; only the 1.9 MB MS-ASL zip downloaded, nothing committed)
+
+### 1. Hugging Face `akasheroor/American-Sign-Language-Dataset`: MIT tag is not credible
+
+- **Where:** dataset card front matter `license: mit`; the card's `## License`
+  section is **empty**. API tags: `license:mit`.
+- **Card text (verbatim):** "This dataset contains **108,618 videos**
+  representing **2,208 ASL words** [...] The videos were **scraped, collected
+  from multiple sources, and preprocessed** [...]". Citation: "American Sign
+  Language Dataset, collected and preprocessed by Zahid Yasin Mittha, 2025."
+  No source list anywhere on the card.
+- **What it is:** videos (mp4). The API lists 99,997 mp4s (listing caps at
+  100k).
+- **Where the videos come from, by filename:**
+  - **55,752 (55.8%) have exactly ASL Citizen's filenames.** I matched them
+    against the 83,399 names in ASL Citizen's own split CSVs, e.g.
+    `0002081503807414009-INHALE.mp4`. So over half the dataset is ASL Citizen
+    (MSR licence: "non-commercial, non-revenue generating, research purposes
+    only"; "you may not distribute the data") re-uploaded under MIT.
+  - 14,522 `WORD_video_N.mp4`; 895 `*_aug_N.mp4` augmentations; 26 named
+    like `A • ASL Dictionary.mp4`, the page-title format of an online ASL
+    dictionary (probably Handspeak, not verified); ~28,800 other
+    (`pear_5.mp4`, `peas_20241119_195754_1.mp4`).
+  - **No WLASL-style ids** (`NNNNN.mp4`): 0 found.
+- **Verdict:** unusable. The MIT tag cannot relicense ASL Citizen, and the rest
+  has no stated source.
+
+### 2. Kaggle `asthalochanmohanta/american-sign-language-asl`
+
+- **Licence field (Kaggle API `licenseName`):** "Apache 2.0".
+- **Description (verbatim, complete):** "ASL Video Dataset: Diverse and
+  Extensive Collection of ASL Gestures for Training and Evaluation in Machine
+  Learning Models. Feel free to adjust the wording based on the specific
+  features, focus, or characteristics of your video dataset. [...] Each file
+  [...] represents a video captured at 30 frames per second (fps) with a
+  resolution of 640 x 480 pixels." (The "feel free to adjust the wording"
+  sentence is template text left in.)
+- **What it is:** videos, 3,590 mp4s (3.37 GB): train 2,850 / val 404 /
+  test 336. **47 words/phrases**: again, bad, bathroom, book, busy, do not
+  want, eat, father, fine, finish, forget, go, good, happy, hello, help, how,
+  i, learn, like, meet, milk, more, mother, my, name, need, nice, no, please,
+  question, right, sad, same, see you letter [sic], thank you, want, what,
+  when, where, which, who, why, wrong, yes, you, your.
+- **Source:** not stated. Filenames are recording timestamps
+  (`again_asl_video_2023-12-12_12-32-39.mp4`, Oct–Dec 2023), which suggests
+  self-recorded by the uploader. **No signer count, no consent statement, no
+  statement that the signers are fluent or Deaf.**
+- **Note:** these 47 words are exactly PopSign's everyday-word gaps (I, you,
+  want, need, what, how, eat...). Apache 2.0 would allow commercial use, but
+  with unknown signers and no consent record I would not ship on it without
+  contacting the uploader. That is the user's call.
+
+### 3. MS-ASL (download.microsoft.com, id=100121): C-UDA, and **URLs only**
+
+- **Zip contents:** `README.md`, `MSASL_{train,val,test}.json`,
+  `MSASL_classes.json`, `MSASL_synonym.json`,
+  `C-UDA-0.1_annotated_discussion.pdf`. **No videos.** Each sample is a
+  YouTube `url` + `start_time`/`end_time` + `box` + `signer_id`, e.g.
+  `https://www.youtube.com/watch?v=C37R_Ix8-qs`. 25,513 samples, 1,000
+  glosses, 222 signer ids.
+- **README (verbatim):** "Licensed under the Computational Use of Data
+  Agreement (C-UDA). Plaese refer to C-UDA-0.1_annotated_discussion.pdf for
+  more information."
+- **C-UDA 0.1, verbatim:**
+  - "1.1. You may use, modify, and distribute the Data made available to you
+    by the Data Provider under this C-UDA for Computational Use if you follow
+    the C-UDA's terms."
+  - "2.1 You agree that you will use the Data solely for Computational Use."
+  - "3.1. You may redistribute the Data, so long as: 3.1.1. You include with
+    any Data you redistribute all credit or attribution information that you
+    received with the Data [...]; and 3.1.2. You bind each recipient to whom
+    you redistribute the Data to the terms of the C-UDA."
+  - "4.1. Data Provider does not represent or warrant that it has any rights
+    whatsoever in the Data."
+  - "5.1. 'Computational Use' means activities necessary to enable the use of
+    Data (alone or along with other material) for analysis by a computer."
+  - "5.5. 'Output' means the outcomes or results that you obtain from your use
+    of Data that do not include more than a de minimis portion of the Data
+    [...]. Artificial intelligence models trained on Data (and which do not
+    include more than a de minimis portion of Data) are Output."
+- **Correction for DATA_LICENSES.md:** its table says MS-ASL is a "Microsoft
+  Research non-commercial research licence". The shipped licence is C-UDA,
+  which has **no non-commercial clause**. But (a) the "Data" is URLs; the
+  videos belong to YouTube uploaders, and 4.1 disclaims any rights in them;
+  (b) a sign lexicon of `.pose` files is arguably Data in modified form, not
+  de-minimis Output. So it is not a clean commercial source either. The
+  project page (microsoft.com/en-us/research/project/ms-asl/) states no
+  licence.
+
+### 4 and 5. Google Kaggle competitions `asl-signs` and `asl-fingerspelling`: **not verified**
+
+The Data tabs and rules need a Kaggle login. The API returned `401
+Unauthenticated` and there are no Kaggle credentials on this laptop. What
+third-party sources say, **not verbatim from Kaggle**:
+
+- `asl-fingerspelling`: described as "provided by Google under CC-BY (CC BY
+  4.0)". MediaPipe 0.9.0.1 landmarks (face 468, hands 21+21, pose 33), **no
+  video**, of fingerspelled phrases, addresses, phone numbers and URLs by
+  "over 100 Deaf signers" on smartphone selfie cameras. Continuous phrases,
+  not isolated letters, so a per-letter fallback needs segmentation.
+  (Sources: hackster.io "Insightful Datasets for ASL recognition";
+  kaggle.com/competitions/asl-fingerspelling.)
+- `asl-signs`: landmarks from PopSign, which its paper says "will be provided
+  under the Creative Commons CC-BY 4.0 license". I found no statement of the
+  competition data's own licence or rules.
+- **Still open:** the rules' restriction on use outside the competition.
+  Needs someone logged in to Kaggle to read Rules → "Competition Data".
+
+### 6. Lingua Libre: **0 ASL recordings**
+
+- Lingua Libre's own item for ASL is **Q806575** (Q14759 is Wikidata's id; it
+  has no label on Lingua Libre).
+- SPARQL `SELECT (COUNT(?r) AS ?n) WHERE { ?r prop:P2 entity:Q2 ; prop:P4
+  entity:Q806575 }` returns **0**. The one entity linking to Q806575 is a
+  speaker profile (type Q3), not a recording. So there are no ASL sign videos
+  there, and no distinct words.
+
+---
+
 ## 2026-09-29, 20:10 local: converting; ETA ~1 h, then calibrate
 
 - Downloads done for ASL Citizen (5,253 clips, 2.9 GB); PopSign still
