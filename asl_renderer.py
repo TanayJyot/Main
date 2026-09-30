@@ -141,6 +141,15 @@ class RenderService:
                 missing.append(gloss)
         return missing
 
+    def split_available(self, glosses: Sequence[str]) -> Tuple[List[str], List[str]]:
+        """(glosses the lexicon has, in order; glosses it lacks, deduplicated).
+
+        For callers that would rather sign part of a caption than none of it,
+        which is the useful behaviour while the lexicon is small.
+        """
+        available = self.available_glosses()
+        return [gloss for gloss in glosses if gloss in available], self.missing_from(glosses)
+
     def pose_for(self, gloss: str):
         """A loaded Pose for one gloss, cached."""
         cached = self._poses.get(gloss)

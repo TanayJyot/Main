@@ -1,15 +1,36 @@
 from flask import Flask, request, render_template, jsonify
 from flask_cors import CORS
+import hashlib
+import json
 import os
 from utils.youtube_caption_utils import extract_video_id, get_youtube_captions_with_timing
 from merge_asl_clips import merge_asl_video_clips
-from utils.generate_asl_video import GenerationError, generate
+from utils.generate_asl_video import GenerationError, generate, generate_with_report, lexicon_words
+from utils import aslytics_env
 
 REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 app = Flask(__name__)
 CORS(app)
 app.config['UPLOAD_FOLDER'] = os.path.join(REPO_ROOT, 'static', 'videos')
+# Videos for the sentence page. Git ignores this folder (see its .gitignore),
+# so trying sentences never touches the tracked sample videos above.
+SENTENCE_FOLDER = os.path.join(REPO_ROOT, 'static', 'sentences')
+
+
+def sign_credit():
+    """Where the signs come from, from the lexicon's lexicon.json if it has one.
+
+    PopSign is CC BY 4.0, which requires crediting it wherever its signs are
+    shown; popsign_lexicon.py writes this file for that reason.
+    """
+    manifest = aslytics_env.lexicon_dir() / "lexicon.json"
+    try:
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return {"source": data.get("source", ""), "license": data.get("license", "")}
+
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -71,9 +92,32 @@ def index():
 
         return render_template('index.html',
                                youtube_url=youtube_url,
-                               final_asl_video="final_asl_output.mp4")
+                               final_asl_video="final_asl_output.mp4",
+                               credit=sign_credit())
 
-    return render_template('index.html')
+    return render_template('index.html', credit=sign_credit())
+
+
+@app.route('/sentence', methods=['GET', 'POST'])
+def sentence_page():
+    """Type a sentence, get the signs. The quickest way to try a lexicon."""
+    words = lexicon_words()
+    context = {"words": words, "credit": sign_credit()}
+    sentence = request.form.get('sentence', '').strip() if request.method == 'POST' else ''
+    if not sentence:
+        return render_template('sentence.html', **context)
+
+    context["sentence"] = sentence
+    os.makedirs(SENTENCE_FOLDER, exist_ok=True)
+    filename = hashlib.sha1(sentence.encode("utf-8")).hexdigest()[:16] + ".mp4"
+    try:
+        report = generate_with_report(sentence, filename, skip_missing=True,
+                                      publish_dir=SENTENCE_FOLDER)
+        context.update(video=f"sentences/{filename}", signed=report["glosses"],
+                       skipped=report["skipped"])
+    except GenerationError as error:
+        context["error"] = str(error)
+    return render_template('sentence.html', **context)
 
 @app.route('/process', methods=['POST'])
 def process_caption_api():

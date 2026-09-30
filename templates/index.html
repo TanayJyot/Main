@@ -146,5 +146,9 @@
       }
     }, 1000);
   </script>
+  <p><a href="/sentence">Try a single sentence</a></p>
+  {% if credit %}
+  <p style="font-size: 0.85em; color: #555;">Signs: {{ credit.source }} ({{ credit.license }})</p>
+  {% endif %}
 </body>
 </html>

@@ -12,6 +12,10 @@ as well as fragile; this parses the printed list with ast.literal_eval.
 
 Exit codes: 0 rendered, 2 no glosses found, 3 glosses missing from the
 lexicon (listed on stderr).
+
+With --skip-missing (or ASLYTICS_SKIP_MISSING=1) words the lexicon lacks are
+left out and the rest are signed; they are listed under "skipped" in the
+output. Exit code 3 then means none of the words could be signed.
 """
 
 from __future__ import annotations
@@ -19,6 +23,7 @@ from __future__ import annotations
 import argparse
 import ast
 import json
+import os
 import sys
 from pathlib import Path
 from typing import List
@@ -27,6 +32,10 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 MARKER = "Gloss sequence:"
+
+
+def skip_missing_default() -> bool:
+    return os.environ.get("ASLYTICS_SKIP_MISSING", "").strip().lower() in ("1", "true", "yes")
 
 
 def glosses_from_start_output(text: str) -> List[str]:
@@ -48,6 +57,8 @@ def main() -> int:
     parser.add_argument("glosses", nargs="*", help="Glosses, in order")
     parser.add_argument("--start-output", help="Read start.py's stdout from this file, or - for stdin")
     parser.add_argument("--out-video", required=True)
+    parser.add_argument("--skip-missing", action="store_true", default=skip_missing_default(),
+                        help="Sign the words the lexicon has and skip the rest")
     args = parser.parse_args()
 
     glosses = list(args.glosses)
@@ -61,13 +72,20 @@ def main() -> int:
     from asl_renderer import MissingGlosses, RenderService
 
     service = RenderService()
+    skipped: List[str] = []
+    if args.skip_missing:
+        glosses, skipped = service.split_available(glosses)
+        if not glosses:
+            print(json.dumps({"missing": skipped, "lexicon": service.lexicon_directory}),
+                  file=sys.stderr)
+            return 3
     try:
         path, cached = service.render(glosses, args.out_video)
     except MissingGlosses as error:
         print(json.dumps({"missing": error.missing, "lexicon": error.directory}), file=sys.stderr)
         return 3
 
-    print(json.dumps({"glosses": glosses, "video": path, "cached": cached}))
+    print(json.dumps({"glosses": glosses, "skipped": skipped, "video": path, "cached": cached}))
     return 0
 
 

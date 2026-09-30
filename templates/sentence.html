@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ASL Sentence</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 0 16px;
+    }
+
+    input[type="text"] {
+      width: 70%;
+      padding: 6px;
+    }
+
+    .signed { color: #2e7d32; }
+    .skipped { color: #b71c1c; }
+    .error { color: #b71c1c; white-space: pre-wrap; }
+
+    .words {
+      font-size: 0.9em;
+      line-height: 1.6;
+    }
+
+    .credit {
+      font-size: 0.85em;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h1>Sign a Sentence</h1>
+
+  <form method="POST">
+    <input type="text" name="sentence" value="{{ sentence or '' }}"
+           placeholder="e.g. the dog is hungry" required autofocus />
+    <button type="submit">Sign it</button>
+  </form>
+  <p>Words the sign lexicon lacks are left out, and listed below the video.</p>
+
+  {% if error %}
+    <p class="error">{{ error }}</p>
+  {% endif %}
+
+  {% if video %}
+    <video width="480" height="360" controls autoplay loop muted>
+      <source src="{{ url_for('static', filename=video) }}" type="video/mp4" />
+      Your browser does not support the video tag.
+    </video>
+    <p class="signed">Signed: {{ signed | join(' ') }}</p>
+    {% if skipped %}
+      <p class="skipped">Skipped (no sign yet): {{ skipped | join(' ') }}</p>
+    {% endif %}
+  {% endif %}
+
+  <details>
+    <summary>{{ words | length }} words this lexicon can sign</summary>
+    <p class="words">{{ words | join(', ') }}</p>
+  </details>
+
+  <p><a href="/">Back to YouTube captions</a></p>
+  {% if credit %}
+    <p class="credit">Signs: {{ credit.source }} ({{ credit.license }})</p>
+  {% endif %}
+</body>
+</html>
