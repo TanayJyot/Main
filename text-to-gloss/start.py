@@ -38,8 +38,7 @@
 # Imports
 import os
 import subprocess
-import stanfordnlp
-# import stanza
+import stanza
 from operator import itemgetter, attrgetter, methodcaller
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
@@ -49,6 +48,8 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file_
 # made it fail outright on a machine where the models were never downloaded --
 # including when the caller only wanted a helper function from here.
 _nlp = None
+
+DOWNLOAD_COMMAND = "import stanza; stanza.download('en', package='ewt', processors='tokenize,mwt,pos,lemma,depparse')"
 
 
 def get_nlp():
@@ -60,16 +61,24 @@ def get_nlp():
   if _nlp is not None:
     return _nlp
 
+  # Stanza, not stanfordnlp: stanfordnlp 0.2.0 cannot run on Python 3.10+.
+  # It fails to load its models on torch >= 2.6 (weights_only), and on any
+  # torch with Python 3.10 wheels its lemmatiser's beam search crashes on words
+  # it has to generate ("index_select(): Expected dtype int32 or int64"),
+  # because it divides indices with `/`. Stanza is its maintained successor,
+  # with the same EWT models and processors.
   try:
     # processors: tokenize, multi-word tokens, POS, lemma, dependency parse.
     # pos_batch_size is a speed/memory tradeoff, not an accuracy one.
-    _nlp = stanfordnlp.Pipeline(processors='tokenize,mwt,pos,lemma,depparse',
-                                treebank='en_ewt', use_gpu=False, pos_batch_size=3000)
+    # download_method=None: never fetch models at run time; see the error below.
+    _nlp = stanza.Pipeline('en', processors='tokenize,mwt,pos,lemma,depparse',
+                           package='ewt', use_gpu=False, pos_batch_size=3000,
+                           download_method=None, verbose=False)
   except Exception as error:
     raise RuntimeError(
-      "Could not build the StanfordNLP pipeline: %s\n"
+      "Could not build the Stanza pipeline: %s\n"
       "The English models are probably not downloaded. Run:\n"
-      "    python -c \"import stanfordnlp; stanfordnlp.download('en')\"" % error
+      "    python -c \"%s\"" % (error, DOWNLOAD_COMMAND)
     )
   return _nlp
 
@@ -150,14 +159,14 @@ def parse(text):
 
 def wordToDictionary(word):
   dictionary = {
-    'index': word.index,
-    'governor': word.governor,
+    'index': word.id,
+    'governor': word.head,
     'text': word.text.lower(),
     'lemma': word.lemma.lower(),
     'upos': word.upos,
     'xpos': word.xpos,
-    'dependency_relation': word.dependency_relation,
-    'feats': word.dependency_relation,
+    'dependency_relation': word.deprel,
+    'feats': word.deprel,
     'children': []
   }
   return dictionary
@@ -181,13 +190,13 @@ def getMeta(sentence):
     # print(token)
     for word in token.words:
       
-      print(word.index, word.governor, word.text, word.lemma, word.upos, word.dependency_relation) # , word.feats)
+      print(word.id, word.head, word.text, word.lemma, word.upos, word.deprel) # , word.feats)
       # # Insert as dict
       # words.append(wordToDictionary(word))
       # Insertion sort
       j = len(words)
       for i, w in enumerate(words):
-        if word.governor <= w['governor']:
+        if word.head <= w['governor']:
           continue
         else:
           j = i

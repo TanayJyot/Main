@@ -17,7 +17,7 @@ How the pipeline's two halves are run (ASLYTICS_RUNNER):
             <repo>/.venv                                   (if present)
             the interpreter running this code
 
-The two halves can share one environment: stanfordnlp and pose-format install
+The two halves can share one environment: stanza and pose-format install
 side by side on current torch, so a single .venv is the simplest setup.
 """
 
@@ -37,7 +37,7 @@ GLOSS, POSE = "gloss", "pose"
 
 # What each half must be able to import, and the conda environment install.sh
 # creates for it.
-REQUIRED_MODULES = {GLOSS: ["stanfordnlp"], POSE: ["pose_format", "scipy", "vidgear"]}
+REQUIRED_MODULES = {GLOSS: ["stanza"], POSE: ["pose_format", "scipy", "vidgear"]}
 CONDA_ENVS = {GLOSS: ("ASLYTICS_GLOSS_ENV", "text-to-gloss"),
               POSE: ("ASLYTICS_POSE_ENV", "gloss-to-skeleton")}
 PYTHON_VARS = {GLOSS: "ASLYTICS_GLOSS_PYTHON", POSE: "ASLYTICS_POSE_PYTHON"}

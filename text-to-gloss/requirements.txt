@@ -3,12 +3,17 @@
 # The previous file was a CUDA-flavoured pip freeze that listed neither
 # stanfordnlp nor torch -- the two things start.py actually needs -- and pinned
 # torch 1.9.0 alongside triton 3.1.0, which cannot be installed together.
+#
+# stanfordnlp 0.2.0 was replaced by Stanza, its maintained successor: it does
+# not run on Python 3.10+ with any torch (see get_nlp() in start.py). Models:
+#   python -c "import stanza; stanza.download('en', package='ewt', processors='tokenize,mwt,pos,lemma,depparse')"
 
-stanfordnlp==0.2.0
+stanza>=1.9
 
-# stanfordnlp needs torch. CPU is fine: start.py passes use_gpu=False, and the
-# pipeline runs once per caption on short sentences.
-torch>=1.13,<3
+# CPU is fine: start.py passes use_gpu=False, and the pipeline runs once per
+# caption on short sentences. Current Stanza loads its models with
+# weights_only=True, which older torch cannot parse; verified with 2.14.
+torch>=2.6,<3
 
 # Only needed for start.py's getSpeech(), which nothing in the ASLytics
 # pipeline calls. It is imported lazily, so leave this commented out unless you

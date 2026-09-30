@@ -79,7 +79,7 @@ models.
 ```powershell
 python -m venv .venv
 .venv\Scripts\python -m pip install -r requirements.txt -r text-to-gloss/requirements.txt -r requirements-render.txt
-.venv\Scripts\python -c "import stanfordnlp; stanfordnlp.download('en', force=True)"
+.venv\Scripts\python -c "import stanza; stanza.download('en', package='ewt', processors='tokenize,mwt,pos,lemma,depparse')"
 ```
 
 ### 2. Supply the sign lexicon

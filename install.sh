@@ -4,7 +4,7 @@
 #     bash install.sh            # a .venv in the repo (default; works on Windows)
 #     bash install.sh --conda    # separate conda environments per half
 #
-# The default is one virtualenv. The gloss half (stanfordnlp) and the pose
+# The default is one virtualenv. The gloss half (stanza) and the pose
 # half (pose-format) install side by side on current torch, so the separate
 # conda environments this script used to require are optional, not needed.
 # On Windows run this from Git Bash, or run the three commands under
@@ -20,8 +20,8 @@ MODE="venv"
 : "${ASLYTICS_POSE_ENV:=gloss-to-skeleton}"
 
 download_models() {
-  echo "==> downloading StanfordNLP English models (~250MB)"
-  "$@" -c "import stanfordnlp; stanfordnlp.download('en', force=True)"
+  echo "==> downloading Stanza English models"
+  "$@" -c "import stanza; stanza.download('en', package='ewt', processors='tokenize,mwt,pos,lemma,depparse')"
 }
 
 if [ "$MODE" = "conda" ]; then
