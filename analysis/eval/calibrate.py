@@ -30,6 +30,16 @@ with five calibration clips does not count five times; every clip of a gloss
 feeds the same-sign-different-signer calibration. A missing `role` means
 `selected`.
 
+The right answer for a clip is the old file(s) for its **exact** word, taken
+from an optional `gloss` column (the pilot's old-lexicon filename): `bake`
+matches bake_1 and bake_2, and nothing else. Matching by concept instead
+would count a new BEST that lands nearest the old GOOD as a hit, because
+lemmatising merges best, better and good into one concept although they are
+different signs. Without a `gloss` column the concept is used, with a
+warning. An optional `label_rule` column (exact / concept, from
+analysis/convert/labels.py) splits the results, since a concept-fallback clip
+may be a different sign by design.
+
 Nothing here selects or filters new signs by their distance to the old
 lexicon. Those numbers are outputs only; feeding them back into which clip
 represents a gloss would make the replacement derived from scraped data.
@@ -66,6 +76,11 @@ PILOT = HERE.parent / "coverage" / "pilot_200.txt"
 def load_pilot():
     return [line.strip() for line in PILOT.read_text().splitlines()
             if line.strip() and not line.startswith("#")]
+
+
+def base_word(name: str) -> str:
+    """Old filename or dataset label -> the word it names: bake_2 -> bake, CALL1 -> call."""
+    return re.sub(r"(_\d+|\d+)$", "", name).lower()
 
 
 def load_mapping():
@@ -165,14 +180,26 @@ def with_new(old_dir: str, manifest_path: str, null):
         except Exception:
             continue
 
+    if entries and not entries[0].get("gloss"):
+        print("  warning: manifest has no gloss column; scoring against whole concepts, "
+              "which counts a different sign of the same root (BEST vs GOOD) as correct")
+
     per_gloss, by_concept_signer = [], defaultdict(list)
     for entry in entries:
         row = mapping.get(entry["concept"])
         if row is None or not row["old_files"]:
             continue
-        correct = set(filter(None, row["old_files"].split("|")))
+        gloss = (entry.get("gloss") or "").strip()
+        if gloss:
+            correct = {name for name in old_features if base_word(name) == base_word(gloss)}
+        else:
+            correct = set(filter(None, row["old_files"].split("|")))
+        if not correct:
+            continue
         new = load_features(entry["path"])
-        by_concept_signer[entry["concept"]].append((entry.get("signer", ""), new))
+        # Calibration pairs group by exact gloss when known, so two clips are
+        # only called "the same sign" if they carry the same word.
+        by_concept_signer[gloss or entry["concept"]].append((entry.get("signer", ""), new))
         if (entry.get("role") or "selected").strip() != "selected":
             continue
 
@@ -182,7 +209,8 @@ def with_new(old_dir: str, manifest_path: str, null):
             continue
         detail = compare(old_features[own], new)
         per_gloss.append({
-            "concept": entry["concept"], "source": entry["source"], "label": entry["label"],
+            "concept": entry["concept"], "gloss": gloss, "source": entry["source"],
+            "label": entry["label"], "label_rule": (entry.get("label_rule") or "").strip(),
             "flagged_variants": "variants" in row["flags"],
             "distance": detail.distance,
             "left_hand_pck": detail.left_hand_pck, "right_hand_pck": detail.right_hand_pck,
@@ -212,8 +240,15 @@ def with_new(old_dir: str, manifest_path: str, null):
 
     return {
         "retrieval_chance": 1 / len(old_features) if old_features else float("nan"),
+        "all_selected": block(per_gloss),
         "unambiguous": block([r for r in per_gloss if not r["flagged_variants"]]),
         "variant_flagged": block([r for r in per_gloss if r["flagged_variants"]]),
+        # Concept-fallback clips (i -> ME) are a different English word by
+        # design; report them apart so they cannot drag the headline either way.
+        "exact_label": block([r for r in per_gloss if r["label_rule"] in ("", "exact")]),
+        "concept_fallback": block([r for r in per_gloss if r["label_rule"] == "concept"]),
+        "by_source": {source: block([r for r in per_gloss if r["source"] == source])
+                      for source in sorted({r["source"] for r in per_gloss})},
         "real_same_sign_different_signer": summarise_distances(same_signer_pairs),
         "real_separation_auc": separation_auc(same_signer_pairs, null),
     }, per_gloss
