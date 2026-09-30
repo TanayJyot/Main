@@ -49,7 +49,7 @@ from concatenate import concatenate_poses, lexicon_dir, load_pose  # noqa: E402
 
 # Bumped when a change alters rendered output, so old cache entries are not
 # served for new behaviour. Anything that changes pixels belongs in the key.
-RENDER_VERSION = 1
+RENDER_VERSION = 2  # 2: concatenate matches frame rates before joining
 
 
 class MissingGlosses(KeyError):
@@ -195,9 +195,21 @@ class RenderService:
     # -- rendering -------------------------------------------------------
 
     def cache_key(self, glosses: Sequence[str]) -> str:
-        payload = json.dumps({"glosses": list(glosses), "version": RENDER_VERSION},
+        # The sign files are part of the key: rebuilding a lexicon in place
+        # (same words, new clips or new trimming) otherwise serves the old
+        # renders indefinitely. Path + size + mtime is cheap and changes on
+        # every rewrite.
+        payload = json.dumps({"glosses": list(glosses), "version": RENDER_VERSION,
+                              "files": [self._fingerprint(g) for g in glosses]},
                              sort_keys=True)
         return hashlib.sha1(payload.encode("utf-8")).hexdigest()
+
+    def _fingerprint(self, gloss: str) -> Optional[List]:
+        path = self._path_for(gloss)
+        if path is None:
+            return None
+        stat = os.stat(path)
+        return [os.path.abspath(path), stat.st_size, stat.st_mtime_ns]
 
     def render(self, glosses: Sequence[str], output_path: str) -> Tuple[str, bool]:
         """Render a gloss sequence to `output_path`.

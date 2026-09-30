@@ -102,6 +102,18 @@ def test_cache_key_is_order_sensitive_and_version_sensitive():
             asl_renderer.RENDER_VERSION = original
 
 
+def test_cache_key_changes_when_a_sign_file_is_replaced():
+    """Rebuilding the lexicon in place must not serve renders of the old signs."""
+    with tempfile.TemporaryDirectory() as tmp:
+        svc = service(tmp)
+        before = svc.cache_key(["hello", "world"])
+        path = os.path.join(svc.lexicon_directory, "world.pose")
+        with open(path, "ab") as handle:  # a different file under the same name
+            handle.write(b"extra")
+        assert svc.cache_key(["hello", "world"]) != before
+        assert svc.cache_key(["hello"]) == svc.cache_key(["hello"])
+
+
 def test_render_caches_and_second_call_hits():
     with tempfile.TemporaryDirectory() as tmp:
         svc = service(tmp)

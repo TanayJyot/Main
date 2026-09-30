@@ -87,7 +87,28 @@ def trim_pose(pose, start=True, end=True):
     return pose
 
 
+def match_frame_rates(poses: List[Pose]) -> List[Pose]:
+    """Resample every pose to the lowest frame rate among them.
+
+    Concatenation joins frames and plays them at poses[0]'s fps, so a sign
+    recorded at a higher rate played slower by that ratio: PopSign mixes 30
+    and 120 fps (a 120 fps sign came out 4x slow), and the old lexicon mixed
+    24/30/60. The lowest rate keeps rendering cheap and leaves same-rate
+    sentences untouched.
+    """
+    target = min(float(p.body.fps) for p in poses)
+    out = []
+    for p in poses:
+        if abs(float(p.body.fps) - target) > 0.5 and len(p.body.data) > 1:
+            p = Pose(p.header, p.body.interpolate(new_fps=target, kind='linear'))
+        out.append(p)
+    return out
+
+
 def concatenate_poses(poses: List[Pose], trim=True) -> Pose:
+    print('Matching frame rates...')
+    poses = match_frame_rates(poses)
+
     if ConcatenationSettings.is_reduce_holistic:
         print('Reducing poses...')
         poses = [reduce_holistic(p) for p in poses]
