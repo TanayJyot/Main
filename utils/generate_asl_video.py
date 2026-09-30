@@ -55,8 +55,16 @@ def lexicon_words() -> List[str]:
     directory = env.lexicon_dir()
     if not directory.is_dir():
         return []
-    stems = {path.stem for path in directory.glob("*.pose")}
+    stems = {path.stem for path in directory.glob("*.pose") if not path.stem.startswith("fs_")}
     return sorted(stems | {re.sub(r"_\d+$", "", stem) for stem in stems})
+
+
+def lexicon_letters() -> List[str]:
+    """Characters the lexicon can fingerspell (fs_<char>.pose)."""
+    directory = env.lexicon_dir()
+    if not directory.is_dir():
+        return []
+    return sorted(path.stem[3:] for path in directory.glob("fs_*.pose"))
 
 
 def generate(sentence: str, output_name: str, glosses: Optional[List[str]] = None,
@@ -70,7 +78,8 @@ def generate_with_report(sentence: str, output_name: str, glosses: Optional[List
                          publish_dir: Optional[Path] = None) -> Dict[str, object]:
     """generate(), also returning which glosses were signed and which skipped.
 
-    {"video": Path, "glosses": [...signed], "skipped": [...not in lexicon]}
+    {"video": Path, "glosses": [...signed], "spelled": [...fingerspelled],
+     "skipped": [...neither]}
 
     publish_dir, if given, receives the finished video instead of
     $ASLYTICS_VIDEO_DIR and $ASLYTICS_WEB_VIDEO_DIR.
@@ -126,7 +135,7 @@ def generate_with_report(sentence: str, output_name: str, glosses: Optional[List
 
     report = _last_json(result.stdout)
     return {"video": published, "glosses": report.get("glosses", []),
-            "skipped": report.get("skipped", [])}
+            "spelled": report.get("spelled", []), "skipped": report.get("skipped", [])}
 
 
 def env_skip_missing() -> bool:
@@ -178,6 +187,8 @@ def main() -> int:
     except GenerationError as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
+    if report["spelled"]:
+        print(f"Fingerspelled: {' '.join(report['spelled'])}")
     if report["skipped"]:
         print(f"Skipped (no sign in the lexicon): {' '.join(report['skipped'])}")
     print(f"Final video: {report['video']}")

@@ -56,16 +56,16 @@ def test_build_copies_renames_and_credits():
         assert json.loads((out / "lexicon.json").read_text())["license"] == "CC BY 4.0"
 
 
-def test_split_available_keeps_order_and_reports_missing():
+def test_plan_keeps_order_and_reports_missing_once():
     from asl_renderer import RenderService
 
     with tempfile.TemporaryDirectory() as tmp:
         for name in ("dog", "milk", "bake_1"):
             (Path(tmp) / f"{name}.pose").write_bytes(b"")
         service = RenderService(lexicon_directory=tmp, clip_cache=False)
-        kept, missing = service.split_available(["dog", "you", "milk", "you", "bake", "zebra"])
-        assert kept == ["dog", "milk", "bake"]
-        assert missing == ["you", "zebra"]
+        plan = service.plan(["dog", "you", "milk", "you", "bake", "zebra"])
+        assert plan["sequence"] == ["dog", "milk", "bake"]
+        assert plan["skipped"] == ["you", "zebra"]
 
 
 # -- trimming and the presence floor, on the repository's own test pose ------

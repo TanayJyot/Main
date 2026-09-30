@@ -270,15 +270,11 @@ def getLemmaSequence(meta):
         translation.extend(fingerSpell)
         print(translation)
 
-      # Numbers
+      # Numbers: kept as a word. This branch used to build a list and never
+      # add it, so every number was dropped. The renderer signs the number if
+      # the lexicon has it and otherwise fingerspells it, digit by digit.
       elif word['upos'] == 'NUM':
-        fingerSpell = []
-        for letter in word['text'].lower():
-          spell = {}
-          # Convert number to fingerspell
-          pass
-          # Add fingerspell as individual lemmas
-          fingerSpell.append(spell)
+        translation.append(word)
 
       # Interjections usually use alternative or special set of signs
       elif word['upos'] == 'CCONJ':

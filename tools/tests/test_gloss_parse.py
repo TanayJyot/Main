@@ -55,6 +55,13 @@ def test_sentence_that_crashed_stanfordnlp():
     assert gloss(rows) == ["bath", "aunt", "awake"], gloss(rows)
 
 
+def test_numbers_are_kept():
+    # The NUM branch used to build a list and never add it: numbers vanished.
+    rows = [(1, 2, "sam", "sam", "PROPN", "nsubj"), (2, 0, "has", "have", "VERB", "root"),
+            (3, 4, "3", "3", "NUM", "nummod"), (4, 2, "cats", "cat", "NOUN", "obj")]
+    assert "3" in gloss(rows), gloss(rows)
+
+
 def test_time_word_fronted():
     rows = [(1, 4, "yesterday", "yesterday", "NOUN", "obl:unmarked"), (2, 3, "the", "the", "DET", "det"),
             (3, 4, "boy", "boy", "NOUN", "nsubj"), (4, 0, "saw", "see", "VERB", "root"),

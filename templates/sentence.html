@@ -18,6 +18,7 @@
     }
 
     .signed { color: #2e7d32; }
+    .spelled { color: #1565c0; }
     .skipped { color: #b71c1c; }
     .error { color: #b71c1c; white-space: pre-wrap; }
 
@@ -40,7 +41,8 @@
            placeholder="e.g. the dog is hungry" required autofocus />
     <button type="submit">Sign it</button>
   </form>
-  <p>Words the sign lexicon lacks are left out, and listed below the video.</p>
+  <p>Words the sign lexicon lacks are fingerspelled if it has letters, otherwise
+     left out. Both are listed below the video.</p>
 
   {% if error %}
     <p class="error">{{ error }}</p>
@@ -52,6 +54,9 @@
       Your browser does not support the video tag.
     </video>
     <p class="signed">Signed: {{ signed | join(' ') }}</p>
+    {% if spelled %}
+      <p class="spelled">Fingerspelled: {{ spelled | join(' ') }}</p>
+    {% endif %}
     {% if skipped %}
       <p class="skipped">Skipped (no sign yet): {{ skipped | join(' ') }}</p>
     {% endif %}
@@ -61,6 +66,9 @@
     <summary>{{ words | length }} words this lexicon can sign</summary>
     <p class="words">{{ words | join(', ') }}</p>
   </details>
+  {% if letters %}
+    <p class="words">Can fingerspell: {{ letters | join(' ') }}</p>
+  {% endif %}
 
   <p><a href="/">Back to YouTube captions</a></p>
   {% if credit %}

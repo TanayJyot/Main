@@ -141,14 +141,57 @@ class RenderService:
                 missing.append(gloss)
         return missing
 
-    def split_available(self, glosses: Sequence[str]) -> Tuple[List[str], List[str]]:
-        """(glosses the lexicon has, in order; glosses it lacks, deduplicated).
+    def plan(self, glosses: Sequence[str], fingerspell: bool = True) -> Dict[str, List[str]]:
+        """What to render for a gloss sequence, fingerspelling what has no sign.
 
-        For callers that would rather sign part of a caption than none of it,
-        which is the useful behaviour while the lexicon is small.
+        Returns {"sequence": glosses to render, "signed": words shown by their
+        own sign, "spelled": words fingerspelled, "skipped": words neither}.
+
+        Fingerspelling uses fs_<char>.pose clips (prototype/fingerspelling.py):
+          - a run of two or more single-letter glosses is a spelled word:
+            text-to-gloss emits names that way (J A V I E R);
+          - any other word with no sign is spelled if every character has a
+            clip, except a lone letter such as "i" (the pronoun), which is
+            a word with no sign, not a letter; lone digits are spelled.
         """
         available = self.available_glosses()
-        return [gloss for gloss in glosses if gloss in available], self.missing_from(glosses)
+        sequence: List[str] = []
+        signed: List[str] = []
+        spelled: List[str] = []
+        skipped: List[str] = []
+
+        def letters(word: str) -> Optional[List[str]]:
+            if not fingerspell or not word:
+                return None
+            out = [f"fs_{char}" for char in word.lower() if char not in " -'"]
+            return out if out and all(name in available for name in out) else None
+
+        index = 0
+        while index < len(glosses):
+            run_end = index
+            while run_end < len(glosses) and len(glosses[run_end]) == 1 and glosses[run_end].isalpha():
+                run_end += 1
+            if run_end - index >= 2:
+                word = "".join(glosses[index:run_end])
+                spelling = letters(word)
+                (spelled if spelling else skipped).append(word)
+                sequence.extend(spelling or [])
+                index = run_end
+                continue
+
+            gloss = glosses[index]
+            index += 1
+            if gloss in available:
+                sequence.append(gloss)
+                signed.append(gloss)
+                continue
+            spelling = letters(gloss) if (len(gloss) > 1 or gloss.isdigit()) else None
+            if spelling:
+                sequence.extend(spelling)
+                spelled.append(gloss)
+            elif gloss not in skipped:
+                skipped.append(gloss)
+        return {"sequence": sequence, "signed": signed, "spelled": spelled, "skipped": skipped}
 
     def pose_for(self, gloss: str):
         """A loaded Pose for one gloss, cached."""

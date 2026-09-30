@@ -35,6 +35,7 @@ SENTENCES = [
     "yesterday the boy saw a yellow bird in the tree",
     "it is hot outside, go to the pool",
     "thank you for the gift",
+    "sam has 3 cats",
 ]
 
 
@@ -64,8 +65,8 @@ def main() -> int:
         entry = {"sentence": sentence}
         try:
             result = generate_with_report(sentence, f"demo_{index}.mp4", skip_missing=True)
-            entry.update(signed=result["glosses"], skipped=result["skipped"],
-                         video=str(result["video"]))
+            entry.update(signed=result["glosses"], spelled=result["spelled"],
+                         skipped=result["skipped"], video=str(result["video"]))
         except GenerationError as error:
             entry.update(signed=[], error=str(error).splitlines()[0])
         entry["seconds"] = round(time.time() - started, 1)
@@ -73,6 +74,8 @@ def main() -> int:
 
         signed = " ".join(entry["signed"]) or "-"
         print(f"\n{sentence}\n  signed:  {signed}")
+        if entry.get("spelled"):
+            print(f"  spelled: {' '.join(entry['spelled'])}")
         if entry.get("skipped"):
             print(f"  skipped: {' '.join(entry['skipped'])}")
         if entry.get("error"):
@@ -81,9 +84,10 @@ def main() -> int:
             print(f"  video:   {entry['video']}  ({entry['seconds']} s)")
 
     signed = sum(len(e["signed"]) for e in report)
+    spelled = sum(len(e.get("spelled", [])) for e in report)
     skipped = sum(len(e.get("skipped", [])) for e in report)
     print(f"\n{sum(1 for e in report if e.get('video'))}/{len(report)} sentences rendered; "
-          f"{signed} words signed, {skipped} skipped.")
+          f"{signed} words signed, {spelled} fingerspelled, {skipped} skipped.")
 
     out = demo_dir / "demo_report.json"
     out.parent.mkdir(parents=True, exist_ok=True)

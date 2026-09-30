@@ -57,7 +57,7 @@ Words that are signed with a differently named PopSign label:
 - `we` ← PopSign `weus`
 - `window` ← PopSign `glasswindow`
 
-Not in PopSign, so always skipped: common words such as *I, you, good, eat, want, need, know, name, what, how*. Nor the alphabet, so names and numbers cannot yet be fingerspelled.
+Not in PopSign: common words such as *I, you, good, eat, want, need, know, name, what, how*. When the lexicon is built with letters from Google's ASL Fingerspelling data (`--letters`), any word without a sign, names included, is fingerspelled; otherwise it is skipped.
 
 ## 2. ASL Citizen: research only
 

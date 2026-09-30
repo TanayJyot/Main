@@ -13,9 +13,11 @@ as well as fragile; this parses the printed list with ast.literal_eval.
 Exit codes: 0 rendered, 2 no glosses found, 3 glosses missing from the
 lexicon (listed on stderr).
 
-With --skip-missing (or ASLYTICS_SKIP_MISSING=1) words the lexicon lacks are
-left out and the rest are signed; they are listed under "skipped" in the
-output. Exit code 3 then means none of the words could be signed.
+Words the lexicon has no sign for are fingerspelled when it has letter clips
+(fs_<char>.pose; see RenderService.plan), and listed under "spelled". With
+--skip-missing (or ASLYTICS_SKIP_MISSING=1) words that can be neither signed
+nor spelled are left out and the rest are signed; they are listed under
+"skipped". Exit code 3 then means nothing at all could be signed.
 """
 
 from __future__ import annotations
@@ -72,20 +74,20 @@ def main() -> int:
     from asl_renderer import MissingGlosses, RenderService
 
     service = RenderService()
-    skipped: List[str] = []
-    if args.skip_missing:
-        glosses, skipped = service.split_available(glosses)
-        if not glosses:
-            print(json.dumps({"missing": skipped, "lexicon": service.lexicon_directory}),
-                  file=sys.stderr)
-            return 3
+    plan = service.plan(glosses)
+    if (plan["skipped"] and not args.skip_missing) or not plan["sequence"]:
+        print(json.dumps({"missing": plan["skipped"], "lexicon": service.lexicon_directory}),
+              file=sys.stderr)
+        return 3
     try:
-        path, cached = service.render(glosses, args.out_video)
+        path, cached = service.render(plan["sequence"], args.out_video)
     except MissingGlosses as error:
         print(json.dumps({"missing": error.missing, "lexicon": error.directory}), file=sys.stderr)
         return 3
 
-    print(json.dumps({"glosses": glosses, "skipped": skipped, "video": path, "cached": cached}))
+    print(json.dumps({"glosses": plan["signed"], "spelled": plan["spelled"],
+                      "skipped": plan["skipped"], "sequence": plan["sequence"],
+                      "video": path, "cached": cached}))
     return 0
 
 

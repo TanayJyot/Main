@@ -95,10 +95,12 @@ MIN_PRESENCE = 0.3
 
 
 def build(labels_dir: Path, out_dir: Path, trim: bool = True,
-          min_presence: float = MIN_PRESENCE) -> Dict[str, object]:
+          min_presence: float = MIN_PRESENCE, letters_dir: Path = None) -> Dict[str, object]:
     """Write the lexicon. With trim, each sign is cut to its signing (trim.py)
     and signs whose hands were barely tracked are rejected; without it, files
-    are copied as they are."""
+    are copied as they are. letters_dir, from prototype/fingerspelling.py,
+    adds its fs_<char>.pose clips and their credit, so the renderer can
+    fingerspell words that have no sign."""
     out_dir.mkdir(parents=True, exist_ok=True)
     built, missing, rejected, seconds = {}, [], {}, {}
     for label in popsign_labels():
@@ -118,10 +120,20 @@ def build(labels_dir: Path, out_dir: Path, trim: bool = True,
             (out_dir / f"{word}.pose").write_bytes(data)
             built[word] = label
 
-    (out_dir / "ATTRIBUTION.txt").write_text(ATTRIBUTION, encoding="utf-8")
+    letters, attribution = [], ATTRIBUTION
+    if letters_dir is not None:
+        for clip in sorted(letters_dir.glob("fs_*.pose")):
+            (out_dir / clip.name).write_bytes(clip.read_bytes())
+            letters.append(clip.stem[3:])
+        credit = letters_dir / "ATTRIBUTION.txt"
+        if letters and credit.exists():
+            attribution += "\n" + credit.read_text(encoding="utf-8")
+
+    (out_dir / "ATTRIBUTION.txt").write_text(attribution, encoding="utf-8")
     manifest = {
-        "source": "PopSign ASL v1.0",
+        "source": "PopSign ASL v1.0" + (" and Google ASL Fingerspelling" if letters else ""),
         "license": "CC BY 4.0",
+        "letters": letters,
         "words": dict(sorted(built.items())),
         "labels_missing": missing,
         "labels_rejected_low_hand_presence": rejected,
@@ -209,9 +221,10 @@ def words_markdown() -> str:
         "",
         *[f"- {line}" for line in renamed],
         "",
-        "Not in PopSign, so always skipped: common words such as *I, you, good, eat, want, "
-        "need, know, name, what, how*. Nor the alphabet, so names and numbers cannot yet "
-        "be fingerspelled.",
+        "Not in PopSign: common words such as *I, you, good, eat, want, need, know, name, "
+        "what, how*. When the lexicon is built with letters from Google's ASL "
+        "Fingerspelling data (`--letters`), any word without a sign, names included, is "
+        "fingerspelled; otherwise it is skipped.",
         "",
         "## 2. ASL Citizen: research only",
         "",
@@ -240,6 +253,9 @@ def main() -> int:
     b.add_argument("--out", type=Path, default=REPO_ROOT / "lexicon" / "popsign")
     b.add_argument("--no-trim", action="store_true",
                    help="Copy clips as they are: no motion trim, no presence floor")
+    b.add_argument("--letters", type=Path,
+                   help="Folder of fs_<char>.pose from prototype/fingerspelling.py, to fingerspell "
+                        "words with no sign")
     b.add_argument("--min-presence", type=float, default=MIN_PRESENCE,
                    help=f"Reject signs whose hands were seen in fewer frames (default {MIN_PRESENCE})")
     sub.add_parser("words", help="Print the word list as Markdown")
@@ -251,9 +267,12 @@ def main() -> int:
 
     if not args.labels.is_dir():
         parser.error(f"no such directory: {args.labels}")
-    manifest = build(args.labels, args.out, trim=not args.no_trim, min_presence=args.min_presence)
+    manifest = build(args.labels, args.out, trim=not args.no_trim, min_presence=args.min_presence,
+                     letters_dir=args.letters)
     signs = len(set(manifest["words"].values()))
     print(f"{len(manifest['words'])} words from {signs} PopSign signs -> {args.out}")
+    if manifest["letters"]:
+        print(f"fingerspelling: {len(manifest['letters'])} characters ({''.join(manifest['letters'])})")
     if manifest["labels_missing"]:
         print(f"no clip for {len(manifest['labels_missing'])} labels: "
               f"{' '.join(manifest['labels_missing'])}", file=sys.stderr)

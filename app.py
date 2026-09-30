@@ -5,7 +5,7 @@ import json
 import os
 from utils.youtube_caption_utils import extract_video_id, get_youtube_captions_with_timing
 from merge_asl_clips import merge_asl_video_clips
-from utils.generate_asl_video import GenerationError, generate_with_report, lexicon_words
+from utils.generate_asl_video import GenerationError, generate_with_report, lexicon_letters, lexicon_words
 from utils import aslytics_env
 
 REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -66,6 +66,8 @@ def index():
             # from Python can resolve to WSL's, which cannot see the venv.
             try:
                 report = generate_with_report(sentence, output_path)
+                if report["spelled"]:
+                    print(f"  fingerspelled: {' '.join(report['spelled'])}")
                 if report["skipped"]:
                     print(f"  skipped (no sign in the lexicon): {' '.join(report['skipped'])}")
             except GenerationError as error:
@@ -104,7 +106,7 @@ def index():
 def sentence_page():
     """Type a sentence, get the signs. The quickest way to try a lexicon."""
     words = lexicon_words()
-    context = {"words": words, "credit": sign_credit()}
+    context = {"words": words, "letters": lexicon_letters(), "credit": sign_credit()}
     sentence = request.form.get('sentence', '').strip() if request.method == 'POST' else ''
     if not sentence:
         return render_template('sentence.html', **context)
@@ -116,7 +118,7 @@ def sentence_page():
         report = generate_with_report(sentence, filename, skip_missing=True,
                                       publish_dir=SENTENCE_FOLDER)
         context.update(video=f"sentences/{filename}", signed=report["glosses"],
-                       skipped=report["skipped"])
+                       spelled=report["spelled"], skipped=report["skipped"])
     except GenerationError as error:
         context["error"] = str(error)
     return render_template('sentence.html', **context)

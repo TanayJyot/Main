@@ -52,14 +52,59 @@ To see which words the loaded lexicon can sign:
 python utils/generate_asl_video.py --words
 ```
 
+## Fingerspelling (optional)
+
+With letter clips in the lexicon, a word with no sign is spelled out letter by
+letter instead of skipped. Names already come out of text-to-gloss as letters,
+and numbers are spelled digit by digit. The letters come from Google's ASL
+Fingerspelling data on Kaggle.
+
+**Before downloading, you must:**
+
+1. Join the Kaggle competition "Google - American Sign Language
+   Fingerspelling Recognition" and accept its rules.
+2. **Read the rules on using competition data outside the competition.**
+3. Put a Kaggle API token in `%USERPROFILE%\.kaggle\kaggle.json`.
+
+Accepting the rules is a legal agreement, so a person must do these steps.
+
+Then download the phrase list and a few landmark files (each about 1 GB,
+about 1,000 phrases; three or four are plenty):
+
+```
+pip install kaggle pandas pyarrow
+kaggle competitions download -c asl-fingerspelling -f train.csv -p data/fingerspelling
+kaggle competitions download -c asl-fingerspelling -f train_landmarks/5414471.parquet -p data/fingerspelling/train_landmarks
+```
+
+Unzip anything that arrives zipped. Pick parquet names from the `path` column
+of `train.csv`.
+
+Next, cut the phrases into letters. `--header-from` is any sign file from the
+lexicon, so the letters share its layout:
+
+```
+python prototype/fingerspelling.py extract --data data/fingerspelling --header-from <popsign_labels>/dog.pose --out lexicon/fingerspelling
+```
+
+Finally, rebuild with the letters:
+
+```
+python prototype/popsign_lexicon.py build --labels <popsign_labels> --out lexicon/popsign --letters lexicon/fingerspelling
+```
+
+`lexicon/fingerspelling/fingerspelling.json` reports what was found:
+characters, examples per character, and any character with no clean example.
+The letters J and Z move rather than hold, so they may be missing.
+
 ## What to expect
 
 - **The vocabulary is small and childlike.** PopSign was recorded for a
   children's game: animals, family, food, colours, feelings. Everyday words
   like *I, you, good, eat, want, need, know, what, how* are missing, so most
   real captions come out partly signed.
-- **No fingerspelling yet.** PopSign has no alphabet, so names and numbers are
-  skipped. Google's ASL Fingerspelling data (CC BY) is the planned fix.
+- **Fingerspelling needs letters.** PopSign has no alphabet. Without the
+  letter clips (above), names, numbers and unknown words are skipped.
 - **Text-to-gloss drops subject pronouns and articles**, so "I see a bird"
   signs SEE BIRD. That is the existing gloss step, not the lexicon.
 - **One signer per sign, chosen automatically.** The selection rule looks only
