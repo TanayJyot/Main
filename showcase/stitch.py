@@ -3,7 +3,7 @@
 Each panel is a tier's video, letterboxed to the same square, with the tier's
 name above and what it signed below. Panels play in step; a shorter one holds
 its last frame. A panel whose tier could sign nothing shows a blank square
-saying so. Research-only tiers are marked on the video itself, so the mark
+saying so. Non-commercial tiers are marked on the video itself, so the mark
 travels with any screenshot.
 
 Text is drawn with OpenCV's built-in font, which is ASCII only.
@@ -38,7 +38,7 @@ class Panel:
     signed: List[str] = field(default_factory=list)
     spelled: List[str] = field(default_factory=list)
     skipped: List[str] = field(default_factory=list)
-    research_only: bool = False
+    non_commercial: bool = False
 
 
 def _ascii(text: str) -> str:
@@ -106,8 +106,8 @@ def _chrome(panel: Panel, width: int) -> tuple:
         for line in _lines(text, width - 16, 0.45)[:1]:
             _text(footer, line, 8, y, color, 0.45)
             y += 20
-    if panel.research_only:
-        _text(footer, "RESEARCH PREVIEW - NOT FOR DISTRIBUTION", 8, FOOTER - 8, AMBER, 0.45, 1)
+    if panel.non_commercial:
+        _text(footer, "NON-COMMERCIAL USE ONLY", 8, FOOTER - 8, AMBER, 0.45, 1)
     return header, footer
 
 

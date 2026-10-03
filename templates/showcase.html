@@ -30,13 +30,13 @@
 </head>
 <body>
   <h1>What a bigger sign dataset makes possible</h1>
-  {% if research %}
-    <p class="warn">Research preview. Signs from ASL Citizen may be used for research only.
-       Show this page from this computer; do not record, post or send the videos.</p>
+  {% if restricted %}
+    <p class="warn">Non-commercial use only. Signs from Signing Savvy and ASL Citizen are used with
+       their permission for non-commercial purposes; credit them wherever these videos are shown.</p>
   {% endif %}
 
   {% if not tiers %}
-    <p class="miss">No lexicons found. Build lexicon/popsign and lexicon/research first
+    <p class="miss">No lexicons found. Build lexicon/popsign and lexicon/community first
        (see showcase/README.md).</p>
   {% else %}
     <form method="POST">

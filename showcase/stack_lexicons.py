@@ -1,16 +1,17 @@
-"""Stack several lexicons into one research-preview lexicon.
+"""Stack several lexicons into one.
 
-    python showcase/research_lexicon.py --layer lexicon/aslc --layer lexicon/popsign \\
-        [--layer lexicon/fingerspelling] --out lexicon/research
+    python showcase/stack_lexicons.py --layer lexicon/signingsavvy --layer lexicon/aslc \\
+        --layer lexicon/popsign [--layer lexicon/fingerspelling] --out lexicon/community
 
 Each layer is a lexicon folder (a <word>.pose per word, and optionally
 fs_<char>.pose letters, lexicon.json and ATTRIBUTION.txt). Where two layers
 sign the same word, the earlier layer wins: put the best-recorded source
-first. ASL Citizen was filmed on webcams with both hands in view; PopSign on a
-phone held in one hand, so two-handed signs come out one-handed.
+first. Signing Savvy is one fluent signer per sign, filmed in a studio; ASL
+Citizen was filmed on webcams with both hands in view; PopSign on a phone held
+in one hand, so two-handed signs come out one-handed.
 
-The result is research-only if any layer is (its lexicon.json says
-research_only), and every page that shows it says so. It is never committed:
+The result is non-commercial if any layer is (its lexicon.json says
+non_commercial), and every page and video that shows it says so. It is never committed:
 the folder gets a .gitignore of "*".
 """
 
@@ -25,7 +26,7 @@ from pathlib import Path
 from typing import Dict, List
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RESEARCH_LICENSE = "Research preview only: not for distribution or commercial use"
+NON_COMMERCIAL_LICENSE = "Non-commercial use only (see each source in ATTRIBUTION.txt)"
 
 
 def _manifest(layer: Path) -> Dict[str, object]:
@@ -54,11 +55,11 @@ def build(layers: List[Path], out_dir: Path) -> Dict[str, object]:
 
     words: Dict[str, str] = {}
     letters: Dict[str, str] = {}
-    sources, credits, research_only, per_layer = [], [], False, {}
+    sources, credits, non_commercial, per_layer = [], [], False, {}
     for layer in layers:
         info = _manifest(layer)
         name = str(info.get("source") or layer.name)
-        research_only = research_only or bool(info.get("research_only"))
+        non_commercial = non_commercial or bool(info.get("non_commercial"))
         added = 0
         for clip in sorted(layer.glob("*.pose")):
             stem = clip.stem
@@ -77,12 +78,12 @@ def build(layers: List[Path], out_dir: Path) -> Dict[str, object]:
             if credit.exists():
                 credits.append(credit.read_text(encoding="utf-8").strip())
 
-    license_text = RESEARCH_LICENSE if research_only else "; ".join(
+    license_text = NON_COMMERCIAL_LICENSE if non_commercial else "; ".join(
         sorted({str(_manifest(layer).get("license", "")) for layer in layers} - {""}))
     manifest = {
         "source": ", ".join(sources),
         "license": license_text,
-        "research_only": research_only,
+        "non_commercial": non_commercial,
         "words_per_source": per_layer,
         "letters": sorted(letters),
         "words": dict(sorted(words.items())),
@@ -96,7 +97,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--layer", action="append", type=Path, required=True,
                         help="A lexicon folder; repeat, best source first")
-    parser.add_argument("--out", type=Path, default=REPO_ROOT / "lexicon" / "research")
+    parser.add_argument("--out", type=Path, default=REPO_ROOT / "lexicon" / "community")
     args = parser.parse_args()
     for layer in args.layer:
         if not layer.is_dir():
@@ -107,8 +108,8 @@ def main() -> int:
         print(f"  {count:5d} from {source}")
     if manifest["letters"]:
         print(f"  fingerspelling: {''.join(manifest['letters'])}")
-    if manifest["research_only"]:
-        print("RESEARCH PREVIEW ONLY: keep it on this machine.")
+    if manifest["non_commercial"]:
+        print("NON-COMMERCIAL USE ONLY: not for a paid product. Credit every source.")
     return 0
 
 

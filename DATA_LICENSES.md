@@ -29,6 +29,33 @@ appearance half (§4a), not by abandoning the approach. Two other items block a
 commercial release independently: the sign lexicon's unknown provenance (§2b)
 and GPL-3.0 code in `text-to-gloss/` (§3).
 
+## 0. Permissions received
+
+Permissions granted to ASLytics directly, on top of each dataset's public
+licence. The emails are held by the project owner (Tanayjyot). Paste each
+permission's exact wording below when convenient; until then this records the
+owner's summary of 2026-10-03.
+
+| Source | Granted | Scope | Credit | Where it is used |
+|---|---|---|---|---|
+| **ASL Citizen** (Microsoft Research) | 2026-10-03, by email | **Non-commercial use** of the dataset | Cite the dataset (see `showcase/citizen.py` ATTRIBUTION) | `lexicon/aslc`, the community showcase |
+| **Signing Savvy** | 2026-10-03, by email | **Non-commercial use**, including fetching ("scraping") its sign videos | "Signs from Signing Savvy (signingsavvy.com), used with permission" | `lexicon/signingsavvy`, the community showcase |
+
+What this means:
+
+- Both may be shown in community sessions, demos and research write-ups, with
+  credit. Neither may go into a paid product, an ad or a sales pitch. Every
+  page and video built from them says "non-commercial use only".
+- The commercial product still uses PopSign only (CC BY 4.0) until commercial
+  permission or a dataset of our own exists.
+- Not yet covered by the summary: posting videos publicly (social media, a
+  public website), and members-only Signing Savvy videos. Ask both sources
+  before doing either.
+
+Exact wording, ASL Citizen: [paste]
+
+Exact wording, Signing Savvy: [paste]
+
 ## 1. Inventory
 
 | # | Data asset | Where it enters the code | Licence | Commercial use |

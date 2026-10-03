@@ -18,9 +18,9 @@ app.config['UPLOAD_FOLDER'] = os.path.join(REPO_ROOT, 'static', 'videos')
 # Videos for the sentence page. Git ignores this folder (see its .gitignore),
 # so trying sentences never touches the tracked sample videos above.
 SENTENCE_FOLDER = os.path.join(REPO_ROOT, 'static', 'sentences')
-# Videos for the showcase page; also ignored by git. The research-preview tier
-# is ASL Citizen, which may not be distributed: run this page on the laptop and
-# show it from there.
+# Videos for the showcase page; also ignored by git. The community tier uses
+# Signing Savvy and ASL Citizen, which we may use for non-commercial purposes
+# only (DATA_LICENSES.md).
 SHOWCASE_FOLDER = os.path.join(REPO_ROOT, 'static', 'showcase')
 
 
@@ -134,7 +134,7 @@ def showcase_page():
     """One sentence, signed by each lexicon side by side (showcase/tiers.py)."""
     tiers = showcase_tiers.tiers()
     context = {"tiers": tiers, "examples": showcase_tiers.SENTENCES,
-               "research": any(tier.research_only for tier in tiers)}
+               "restricted": any(tier.non_commercial for tier in tiers)}
     sentence = request.form.get('sentence', '').strip() if request.method == 'POST' else ''
     if not sentence or not tiers:
         return render_template('showcase.html', **context)

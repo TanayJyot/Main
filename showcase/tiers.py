@@ -2,12 +2,12 @@
 
 A tier is a name and a lexicon folder. By default:
 
-  Today            lexicon/popsign    PopSign (CC BY 4.0): what we can ship now
-  Research preview lexicon/research   ASL Citizen + PopSign (+ letters), built by
-                                      showcase/research_lexicon.py; research only
+  Prototype   lexicon/popsign    PopSign (CC BY 4.0): what a product may use now
+  Community   lexicon/community  Signing Savvy + ASL Citizen + PopSign (+ letters),
+                                 built by showcase/stack_lexicons.py; non-commercial
 
 Set ASLYTICS_SHOWCASE_TIERS to compare others, e.g.
-    ASLYTICS_SHOWCASE_TIERS="Today=lexicon/popsign;Preview=lexicon/research"
+    ASLYTICS_SHOWCASE_TIERS="Prototype=lexicon/popsign;Community=lexicon/community"
 Tiers whose folder has no signs are left out.
 """
 
@@ -22,8 +22,8 @@ from typing import List, Optional
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 DEFAULT_TIERS = [
-    ("Today: PopSign", "lexicon/popsign"),
-    ("Research preview: ASL Citizen + PopSign", "lexicon/research"),
+    ("Prototype: PopSign", "lexicon/popsign"),
+    ("Community preview: Signing Savvy + ASL Citizen + PopSign", "lexicon/community"),
 ]
 
 # Everyday sentences of the kind captions carry: appointments, weather,
@@ -51,7 +51,7 @@ class Tier:
     path: Path
     source: str = ""
     license: str = ""
-    research_only: bool = False
+    non_commercial: bool = False
     words: List[str] = field(default_factory=list)
     letters: List[str] = field(default_factory=list)
 
@@ -72,7 +72,7 @@ def load(name: str, path: Path) -> Optional[Tier]:
     except (OSError, ValueError):
         info = {}
     return Tier(name=name, path=path, source=str(info.get("source", "")),
-                license=str(info.get("license", "")), research_only=bool(info.get("research_only")),
+                license=str(info.get("license", "")), non_commercial=bool(info.get("non_commercial")),
                 words=[s for s in stems if not s.startswith("fs_")],
                 letters=[s[3:] for s in stems if s.startswith("fs_")])
 

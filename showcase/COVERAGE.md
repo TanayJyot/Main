@@ -9,8 +9,8 @@ Share of everyday signable words (by how often they are used, from `wordfreq`'s 
 | Lexicon | Words | Everyday words signed | Commercial use |
 |---|---|---|---|
 | PopSign ASL v1.0 (prototype today) | 256 | **19%** | yes (CC BY 4.0) |
-| ASL Citizen | 2,271 | **63%** | no (research only) |
-| PopSign + ASL Citizen (research preview) | 2,307 | **65%** | no |
+| ASL Citizen | 2,271 | **63%** | no (non-commercial, by permission) |
+| PopSign + ASL Citizen | 2,307 | **65%** | no |
 
 ## 2. Our own dataset, recording the most-used words first
 

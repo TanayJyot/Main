@@ -14,7 +14,7 @@ and ASL-LEX as CC BY 4.0, and they are wrong.
 |---|---|---|---|---|---|---|
 | **PopSign ASL v1.0** (Georgia Tech, 2023) | 250 signs, ~200k phone videos | 47 Deaf adults | CC BY 4.0 | ✅ | ✅ | signdata.cc.gatech.edu |
 | **Google ISLR "asl-signs"** (Kaggle, 2023) | same 250 signs, ~94k sequences, landmarks only | 21 Deaf | CC BY 4.0 | ✅ | ✅ | Kaggle competition |
-| **ASL Citizen** (Microsoft Research, 2023) | 2,731 signs, 83,399 webcam videos | 52 Deaf/HoH | "solely for non-commercial, non-revenue generating, research purposes"; "may not distribute the data or your modifications" | ❌ ask Microsoft | ⚠️ research only, show from one machine | download.microsoft.com, 42.8 GB zip |
+| **ASL Citizen** (Microsoft Research, 2023) | 2,731 signs, 83,399 webcam videos | 52 Deaf/HoH | "solely for non-commercial, non-revenue generating, research purposes"; "may not distribute the data or your modifications" | ❌ (non-commercial permission granted to ASLytics, 2026-10-03) | ✅ by permission, with credit | download.microsoft.com, 42.8 GB zip |
 | **ASL Signbank** (Hochgesang et al.; aslsignbank.com) | ~4,400 entries, one citation video each | — | CC BY-NC-SA 4.0; "You are welcome to re-use and share the images and videos" | ❌ | ✅ with credit; ask before bulk download | per entry |
 | **Sem-Lex** (BU and others, 2023) | 3,149 signs, 91,148 videos | 41 Deaf | behind a Google Form, unverified | assume ❌ | read the form first | github.com/leekezar/SemLex |
 | **ASLLRP Sign Bank / ASLLVD** (Boston University) | ~6,000 entries; ASLLVD >3,300 signs | native signers | "research and education … cannot be redistributed without permission. Commercial use … not allowed" | ❌ | ask ASLLRP | dai.cs.rutgers.edu |
@@ -52,7 +52,7 @@ and ASL-LEX as CC BY 4.0, and they are wrong.
 |---|---|---|
 | Handspeak | "Any duplication or reproduction, distribution … without the required prior written consent … is prohibited" | ❌ |
 | Lifeprint / ASLU | "you do not have permission to use ASLU materials to make apps of any kind" | ❌ |
-| Signing Savvy | may not "reproduce, publish, transmit, distribute, display, modify, create derivative works" | ❌ |
+| Signing Savvy | may not "reproduce, publish, transmit, distribute, display, modify, create derivative works" | ✅ for ASLytics, non-commercial: permission granted 2026-10-03 |
 | Spread the Sign | "It is not allowed to download or use our videos or data without permission" | ❌ |
 | ASL-LEX videos | "solely for personal searches" | ❌ |
 | ASL Signbank | CC BY-NC-SA 4.0, reuse invited | ✅ non-commercial, ask before bulk download |
@@ -61,10 +61,13 @@ and ASL-LEX as CC BY 4.0, and they are wrong.
 
 - **Commercial, today:** PopSign (250 signs), Google's fingerspelling, and
   signs cut from 2M-Flores-ASL / FLEURS-ASL sentences (share-alike).
-  NVIDIA ASL 1000 if NVIDIA confirms. ASL Citizen if Microsoft agrees.
-- **Community demo, non-commercial:** add ASL Signbank (ask first) and, with
-  care, the ASL Citizen research preview shown from one machine.
-- **Never:** scraped dictionary sites, WLASL, MS-ASL, YouTube-sourced sets.
+  NVIDIA ASL 1000 if NVIDIA confirms. ASL Citizen and Signing Savvy only if
+  they extend their permission to commercial use.
+- **Community demo, non-commercial:** ASL Citizen and Signing Savvy, both by
+  permission for non-commercial use (DATA_LICENSES.md §0). ASL Signbank could
+  be added too (ask first).
+- **Never:** dictionary sites that have not given permission, WLASL, MS-ASL,
+  YouTube-sourced sets.
 - **Our own dataset is the way out.** Paid, consented Deaf signers, recorded
   for the words people actually caption, owned under a licence we choose.
   [COVERAGE.md](COVERAGE.md) shows 1,000 well-chosen signs would cover more

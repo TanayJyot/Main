@@ -1,15 +1,15 @@
-"""Every ASL Citizen sign as a lexicon, for the research preview only.
+"""Every ASL Citizen sign as a lexicon, for non-commercial use.
 
 ASL Citizen (Microsoft Research, 2023) has 2,731 signs recorded by 52 Deaf
-and hard-of-hearing signers on their own webcams. Its licence allows research
-use only and forbids distributing the data "or your modifications". So:
+and hard-of-hearing signers on their own webcams. Its public licence allows
+research use only; the ASL Citizen team has also given ASLytics permission by
+email to use it for non-commercial purposes (DATA_LICENSES.md). So:
 
-  - this runs on the laptop, and everything it makes stays there
-    (.work/aslc and the --out folder both carry a .gitignore of "*");
-  - the lexicon is marked research_only in its lexicon.json, and every page
-    that shows it says so;
-  - it is for showing people what a large, well-recorded vocabulary makes
-    possible, never for the product.
+  - it may be shown to the community, credited, but not used in a paid product;
+  - the lexicon is marked non_commercial in its lexicon.json, and every page
+    and video that shows it says so;
+  - the signs are not committed to git: .work/aslc and the --out folder both
+    carry a .gitignore of "*".
 
 Steps (each re-runnable; finished work is skipped):
 
@@ -51,7 +51,7 @@ DATA = REPO_ROOT / ".work" / "aslc"
 MAX_SIGNERS = 3
 MIN_PRESENCE = 0.3        # same floor as the PopSign prototype
 
-LICENSE = "Research use only (Microsoft Research licence); not for distribution or commercial use"
+LICENSE = "Non-commercial use only, by permission of the ASL Citizen team (Microsoft Research)"
 
 ATTRIBUTION = """\
 Signs in this directory are derived from ASL Citizen (Microsoft Research):
@@ -60,9 +60,9 @@ R. E. Ladner, H. Daumé III, A. X. Lu, N. Caselli, D. Bragg. "ASL Citizen: A
 Community-Sourced Dataset for Advancing Isolated Sign Language Recognition."
 NeurIPS 2023 Datasets and Benchmarks. https://www.microsoft.com/en-us/research/project/asl-citizen/
 
-RESEARCH USE ONLY. ASL Citizen's licence does not permit distributing the
-data or modifications of it, or commercial use. Show these signs only as a
-research preview, from this machine; do not copy them elsewhere.
+NON-COMMERCIAL USE ONLY. ASLytics has the ASL Citizen team's permission to
+use the dataset for non-commercial purposes (DATA_LICENSES.md). Credit the
+dataset wherever these signs are shown, and do not use them in a paid product.
 
 Changes: each video was converted to MediaPipe Holistic landmarks (.pose); one
 clip per sign was chosen by hand-landmark presence; left-handed clips were
@@ -301,7 +301,7 @@ def export(out_dir: Path, data: Path = DATA, max_signers: int = MAX_SIGNERS,
     manifest = {
         "source": "ASL Citizen (Microsoft Research)",
         "license": LICENSE,
-        "research_only": True,
+        "non_commercial": True,
         "words": dict(sorted(built.items())),
         "labels_missing": missing,
         "labels_rejected_low_hand_presence": rejected,
@@ -344,7 +344,7 @@ def main() -> int:
         if manifest["labels_rejected_low_hand_presence"]:
             print(f"left out {len(manifest['labels_rejected_low_hand_presence'])} barely tracked signs",
                   file=sys.stderr)
-        print("RESEARCH USE ONLY: keep it on this machine.")
+        print("NON-COMMERCIAL USE ONLY; credit ASL Citizen wherever these signs are shown.")
     return 0
 
 

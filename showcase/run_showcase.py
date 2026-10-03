@@ -83,7 +83,7 @@ def run(sentences, tiers, out: Path = OUT, natural=None) -> list:
                   + (f" | spelled {' '.join(result['spelled'])}" if result["spelled"] else "")
                   + (f" | missing {' '.join(result['skipped'])}" if result["skipped"] else ""))
             panels.append(Panel(tier.name, Path(result["video"]) if result["video"] else None,
-                                result["signed"], result["spelled"], result["skipped"], tier.research_only))
+                                result["signed"], result["spelled"], result["skipped"], tier.non_commercial))
         video = side_by_side(panels, sentence, out / f"compare_{index}.mp4", env.ffmpeg())
         entry["compare"] = video.name
         entry["seconds"] = round(time.time() - started, 1)
@@ -136,9 +136,10 @@ def gallery(report, tiers) -> str:
                      f"<video src='{esc(entry['compare'])}' controls loop muted playsinline></video>"
                      f"<ul>{lines}</ul></section>")
     credits = "".join(f"<li><b>{esc(t.name)}</b>: {esc(t.source)} ({esc(t.license)})</li>" for t in tiers)
-    research = any(t.research_only for t in tiers)
-    warning = ("<p class=warn>Research preview. Signs from ASL Citizen may be used for research only. "
-               "Show this from this computer; do not upload, post or send these videos.</p>") if research else ""
+    restricted = any(t.non_commercial for t in tiers)
+    warning = ("<p class=warn>Non-commercial use only. Signs from Signing Savvy and ASL Citizen are used "
+               "with their permission for non-commercial purposes; credit them wherever these videos are "
+               "shown.</p>") if restricted else ""
     return f"""<!doctype html>
 <html lang=en><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
 <title>ASLytics Showcase</title>
@@ -179,7 +180,7 @@ def main() -> int:
 
     found = tiering.tiers(args.tiers)
     if not found:
-        print("no lexicons found. Build lexicon/popsign (prototype/README.md) and lexicon/research "
+        print("no lexicons found. Build lexicon/popsign (prototype/README.md) and lexicon/community "
               "(showcase/README.md) first.", file=sys.stderr)
         return 1
     for tier in found:

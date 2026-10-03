@@ -1,7 +1,7 @@
 """Which hand signs a clip, how well it was tracked, and mirroring to right-handed.
 
 The same rule the laptop's analysis/convert/select_clips.py uses for PopSign,
-so the research preview picks clips the way the prototype does:
+so every showcase lexicon picks clips the way the prototype does:
 
   dominant hand  the hand detected in clearly more frames (> 0.2 apart);
                  otherwise the one whose wrist travels further, normalised by

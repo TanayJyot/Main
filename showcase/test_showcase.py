@@ -15,7 +15,7 @@ sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE.parent / "prototype"))
 
 import citizen  # noqa: E402
-import research_lexicon  # noqa: E402
+import stack_lexicons  # noqa: E402
 
 SAMPLE = HERE.parent / "pose-master" / "pose-master" / "src" / "python" / "tests" / "data" / "mediapipe.pose"
 
@@ -51,7 +51,7 @@ def _write(pose, path):
         pose.write(handle)
 
 
-def test_export_picks_the_best_tracked_clip_and_marks_research_only():
+def test_export_picks_the_best_tracked_clip_and_marks_non_commercial():
     from pose_format import Pose
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -73,10 +73,10 @@ def test_export_picks_the_best_tracked_clip_and_marks_research_only():
         assert manifest["picks"]["DOG"]["clip"] == "1-DOG.pose"
         assert manifest["labels_rejected_low_hand_presence"] == {"CAT": 0.0}
         assert manifest["labels_missing"] == ["ME"]
-        assert manifest["research_only"] is True
+        assert manifest["non_commercial"] is True
         assert (out / "dog.pose").exists() and not (out / "cat.pose").exists()
         assert (out / ".gitignore").read_text() == "*\n"
-        assert "RESEARCH USE ONLY" in (out / "ATTRIBUTION.txt").read_text()
+        assert "NON-COMMERCIAL USE ONLY" in (out / "ATTRIBUTION.txt").read_text()
 
 
 def test_mirror_twice_is_the_identity():
@@ -96,7 +96,7 @@ def test_mirror_twice_is_the_identity():
     assert np.allclose(np.asarray(twice.body.data.filled(0)), before)
 
 
-def _layer(root: Path, name: str, words, research_only=False, letters=()):
+def _layer(root: Path, name: str, words, non_commercial=False, letters=()):
     layer = root / name
     layer.mkdir()
     for word in words:
@@ -104,35 +104,35 @@ def _layer(root: Path, name: str, words, research_only=False, letters=()):
     for char in letters:
         (layer / f"fs_{char}.pose").write_bytes(f"{name}:{char}".encode())
     (layer / "lexicon.json").write_text(json.dumps({"source": name, "license": f"{name} licence",
-                                                    "research_only": research_only}))
+                                                    "non_commercial": non_commercial}))
     (layer / "ATTRIBUTION.txt").write_text(f"credit {name}")
     return layer
 
 
-def test_layers_stack_best_first_and_any_research_layer_marks_the_whole():
+def test_layers_stack_best_first_and_any_non_commercial_layer_marks_the_whole():
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        a = _layer(root, "ASL Citizen", ["dog", "you"], research_only=True)
+        a = _layer(root, "ASL Citizen", ["dog", "you"], non_commercial=True)
         b = _layer(root, "PopSign", ["dog", "frog"])
         c = _layer(root, "Letters", [], letters="ab")
         out = root / "out"
-        manifest = research_lexicon.build([a, b, c], out)
+        manifest = stack_lexicons.build([a, b, c], out)
         assert (out / "dog.pose").read_bytes() == b"ASL Citizen:dog"
         assert (out / "frog.pose").read_bytes() == b"PopSign:frog"
         assert (out / "fs_a.pose").exists()
         assert manifest["words_per_source"] == {"ASL Citizen": 2, "PopSign": 1, "Letters": 0}
         assert manifest["source"] == "ASL Citizen, PopSign, Letters"
-        assert manifest["research_only"] and "not for distribution" in manifest["license"]
+        assert manifest["non_commercial"] and "Non-commercial" in manifest["license"]
         credit = (out / "ATTRIBUTION.txt").read_text()
         assert "credit ASL Citizen" in credit and "credit PopSign" in credit and "credit Letters" in credit
         assert (out / ".gitignore").read_text() == "*\n"
 
 
-def test_layers_without_research_data_keep_their_licences():
+def test_layers_without_restricted_data_keep_their_licences():
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        manifest = research_lexicon.build([_layer(root, "PopSign", ["dog"])], root / "out")
-        assert not manifest["research_only"]
+        manifest = stack_lexicons.build([_layer(root, "PopSign", ["dog"])], root / "out")
+        assert not manifest["non_commercial"]
         assert manifest["license"] == "PopSign licence"
 
 
@@ -147,16 +147,16 @@ def test_showcase_renders_each_tier_side_by_side():
 
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        for name, words, research in [("small", ["dog"], False), ("big", ["dog", "cat"], True)]:
+        for name, words, restricted in [("small", ["dog"], False), ("big", ["dog", "cat"], True)]:
             folder = root / name
             folder.mkdir()
             for word in words:
                 (folder / f"{word}.pose").write_bytes(SAMPLE.read_bytes())
             (folder / "lexicon.json").write_text(json.dumps({"source": name, "license": "test",
-                                                            "research_only": research}))
+                                                            "non_commercial": restricted}))
         found = tiering.tiers(f"Small={root / 'small'};Big={root / 'big'};Gone={root / 'nothing'}")
         assert [t.name for t in found] == ["Small", "Big"]
-        assert found[1].research_only and found[1].words == ["cat", "dog"]
+        assert found[1].non_commercial and found[1].words == ["cat", "dog"]
 
         original = generate_asl_video.text_to_gloss
         generate_asl_video.text_to_gloss = lambda sentence: ["cat", "zebra"] if "zebra" in sentence else ["dog", "cat"]
@@ -185,7 +185,7 @@ def test_showcase_renders_each_tier_side_by_side():
         video.release()
         assert width > 2 * 400 and frames > 30
         page = (root / "out" / "index.html").read_text()
-        assert "compare_0.mp4" in page and "Research preview" in page
+        assert "compare_0.mp4" in page and "Non-commercial" in page
         totals = run_showcase.totals(report, found)
         assert totals["Big"] == {"signed": 3, "spelled": 0, "missing": 1, "words": 4}
 
@@ -204,6 +204,36 @@ def test_showcase_renders_each_tier_side_by_side():
         assert video.get(cv2.CAP_PROP_FRAME_WIDTH) > 3 * 400
         video.release()
         assert "their gloss: DOG" in (root / "out2" / "index.html").read_text()
+
+
+def test_video_lexicon_takes_each_words_first_variant():
+    import video_lexicon
+    from pose_format import Pose
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        videos, poses, out = root / "videos", root / "pose", root / "out"
+        videos.mkdir()
+        poses.mkdir()
+        for name in ["right__2", "right__1", "hello", "ice-cream", "cat"]:
+            (videos / f"{name}.mp4").write_bytes(b"")
+        assert [n for n, _ in video_lexicon.variants(videos)["right"]] == [1, 2]
+        assert "ice" not in video_lexicon.variants(videos) and "ice-cream" not in video_lexicon.variants(videos)
+
+        sample = Pose.read(SAMPLE.read_bytes())
+        _write(sample, poses / "right__1.pose")
+        _write(sample, poses / "hello.pose")
+        unseen = Pose.read(SAMPLE.read_bytes())
+        unseen.body.confidence[:, :, 136:] = 0
+        _write(unseen, poses / "right__2.pose")      # a worse variant 2 must not be preferred or matter
+        manifest = video_lexicon.export(videos, poses, out, "Test Source", "NC licence", "Credit line.",
+                                        non_commercial=True)
+        assert manifest["words"] == {"hello": "hello.mp4", "right": "right__1.mp4"}
+        assert manifest["missing"] == ["cat"]
+        assert manifest["picks"]["right"]["variant"] == 1 and manifest["picks"]["right"]["variants"] == 2
+        assert manifest["non_commercial"] is True
+        assert "NON-COMMERCIAL USE ONLY" in (out / "ATTRIBUTION.txt").read_text()
+        assert (out / ".gitignore").read_text() == "*\n"
 
 
 if __name__ == "__main__":
