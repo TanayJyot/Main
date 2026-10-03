@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ASLytics Showcase</title>
+  <style>
+    :root { --bg: #fff; --fg: #1a1a1a; --muted: #666; --card: #f4f4f4;
+            --ok: #2e7d32; --sp: #1565c0; --miss: #b71c1c; --warn: #8a5a00; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #141414; --fg: #eee; --muted: #aaa; --card: #1f1f1f;
+              --ok: #81c784; --sp: #90caf9; --miss: #ef9a9a; --warn: #ffcc80; }
+    }
+    body { background: var(--bg); color: var(--fg); font: 18px/1.5 system-ui, sans-serif;
+           max-width: 1200px; margin: 0 auto; padding: 0 16px 32px; }
+    form { display: flex; gap: 8px; flex-wrap: wrap; }
+    input[type="text"] { flex: 1 1 320px; padding: 10px; font-size: 1em; }
+    button { padding: 10px 18px; font-size: 1em; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+    .tier { background: var(--card); border-radius: 10px; padding: 12px; }
+    .tier h2 { font-size: 1.05em; margin: 0 0 8px; }
+    video { width: 100%; border-radius: 6px; background: #000; }
+    .none { aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+            background: #000; color: #aaa; border-radius: 6px; text-align: center; padding: 16px; }
+    .ok { color: var(--ok); } .sp { color: var(--sp); } .miss { color: var(--miss); }
+    .muted, .credit { color: var(--muted); font-size: 0.85em; }
+    .warn { color: var(--warn); font-weight: 600; }
+    .examples button { font-size: 0.85em; padding: 4px 10px; margin: 2px; }
+  </style>
+</head>
+<body>
+  <h1>What a bigger sign dataset makes possible</h1>
+  {% if research %}
+    <p class="warn">Research preview. Signs from ASL Citizen may be used for research only.
+       Show this page from this computer; do not record, post or send the videos.</p>
+  {% endif %}
+
+  {% if not tiers %}
+    <p class="miss">No lexicons found. Build lexicon/popsign and lexicon/research first
+       (see showcase/README.md).</p>
+  {% else %}
+    <form method="POST">
+      <input type="text" name="sentence" value="{{ sentence or '' }}"
+             placeholder="Type an English sentence" required autofocus />
+      <button type="submit">Sign it</button>
+    </form>
+    <form method="POST" class="examples">
+      <span class="muted">Try:</span>
+      {% for example in examples %}
+        <button type="submit" name="sentence" value="{{ example }}">{{ example }}</button>
+      {% endfor %}
+    </form>
+  {% endif %}
+
+  {% if error %}<p class="miss">{{ error }}</p>{% endif %}
+
+  {% if results %}
+    <p class="muted">Gloss: {{ glosses | join(' ') }}</p>
+    <div class="grid">
+      {% for r in results %}
+        <div class="tier">
+          <h2>{{ r.tier.name }}</h2>
+          {% if r.video %}
+            <video controls autoplay loop muted playsinline>
+              <source src="{{ url_for('static', filename=r.video) }}" type="video/mp4" />
+            </video>
+          {% else %}
+            <div class="none">Nothing in this sentence could be signed with this lexicon.</div>
+          {% endif %}
+          <p class="ok">Signed: {{ r.signed | join(' ') or '-' }}</p>
+          {% if r.spelled %}<p class="sp">Fingerspelled: {{ r.spelled | join(' ') }}</p>{% endif %}
+          {% if r.skipped %}<p class="miss">Missing: {{ r.skipped | join(' ') }}</p>{% endif %}
+          <p class="muted">{{ "{:,}".format(r.tier.words | length) }} words known
+             {% if r.tier.letters %}· fingerspells {{ r.tier.letters | length }} characters{% endif %}</p>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if tiers %}
+    <h2>Lexicons</h2>
+    <ul class="credit">
+      {% for tier in tiers %}
+        <li><b>{{ tier.name }}</b>: {{ tier.source or tier.path }}{% if tier.license %} ({{ tier.license }}){% endif %}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+  <p class="credit">Skeleton videos made with MediaPipe Holistic and pose-format. Not yet reviewed by Deaf signers.
+     <a href="/sentence">One lexicon</a> · <a href="/">YouTube captions</a></p>
+</body>
+</html>

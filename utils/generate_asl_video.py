@@ -50,21 +50,32 @@ def _tail(text: str, lines: int = 8) -> str:
     return "\n".join(text.strip().splitlines()[-lines:])
 
 
-def lexicon_words() -> List[str]:
-    """Every word the current lexicon can sign, as the renderer would look it up."""
-    directory = env.lexicon_dir()
+def lexicon_words(directory: Optional[Path] = None) -> List[str]:
+    """Every word a lexicon (default: the current one) can sign, as the renderer would look it up."""
+    directory = Path(directory) if directory else env.lexicon_dir()
     if not directory.is_dir():
         return []
     stems = {path.stem for path in directory.glob("*.pose") if not path.stem.startswith("fs_")}
     return sorted(stems | {re.sub(r"_\d+$", "", stem) for stem in stems})
 
 
-def lexicon_letters() -> List[str]:
-    """Characters the lexicon can fingerspell (fs_<char>.pose)."""
-    directory = env.lexicon_dir()
+def lexicon_letters(directory: Optional[Path] = None) -> List[str]:
+    """Characters a lexicon (default: the current one) can fingerspell (fs_<char>.pose)."""
+    directory = Path(directory) if directory else env.lexicon_dir()
     if not directory.is_dir():
         return []
     return sorted(path.stem[3:] for path in directory.glob("fs_*.pose"))
+
+
+def text_to_gloss(sentence: str) -> List[str]:
+    """English -> gloss list, on its own. Lets one sentence be rendered with
+    several lexicons while loading the NLP models only once."""
+    from render_glosses import glosses_from_start_output
+
+    result = env.runner(env.GLOSS).run(START_PY, sentence, timeout=GLOSS_TIMEOUT)
+    if result.returncode != 0:
+        raise GenerationError(f"text-to-gloss failed for {sentence!r}:\n{_tail(result.stderr)}")
+    return glosses_from_start_output(result.stdout)
 
 
 def generate(sentence: str, output_name: str, glosses: Optional[List[str]] = None,
@@ -75,14 +86,16 @@ def generate(sentence: str, output_name: str, glosses: Optional[List[str]] = Non
 
 def generate_with_report(sentence: str, output_name: str, glosses: Optional[List[str]] = None,
                          skip_missing: Optional[bool] = None,
-                         publish_dir: Optional[Path] = None) -> Dict[str, object]:
+                         publish_dir: Optional[Path] = None,
+                         lexicon_dir: Optional[Path] = None) -> Dict[str, object]:
     """generate(), also returning which glosses were signed and which skipped.
 
     {"video": Path, "glosses": [...signed], "spelled": [...fingerspelled],
      "skipped": [...neither]}
 
     publish_dir, if given, receives the finished video instead of
-    $ASLYTICS_VIDEO_DIR and $ASLYTICS_WEB_VIDEO_DIR.
+    $ASLYTICS_VIDEO_DIR and $ASLYTICS_WEB_VIDEO_DIR. lexicon_dir, if given,
+    is used instead of $ASLYTICS_LEXICON_DIR for this call only.
     """
     if skip_missing is None:
         skip_missing = env_skip_missing()
@@ -112,7 +125,9 @@ def generate_with_report(sentence: str, output_name: str, glosses: Optional[List
         stdin = result.stdout
 
     # 2. Gloss sequence -> skeleton video.
-    result = env.runner(env.POSE).run(RENDER_PY, *render_args, stdin=stdin, timeout=RENDER_TIMEOUT)
+    lexicon_env = {"ASLYTICS_LEXICON_DIR": str(lexicon_dir)} if lexicon_dir else None
+    result = env.runner(env.POSE).run(RENDER_PY, *render_args, stdin=stdin, timeout=RENDER_TIMEOUT,
+                                      env=lexicon_env)
     if result.returncode == 2:
         raise GenerationError(f"no gloss sequence produced for {label!r}")
     if result.returncode == 3:

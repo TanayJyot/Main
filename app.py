@@ -5,8 +5,10 @@ import json
 import os
 from utils.youtube_caption_utils import extract_video_id, get_youtube_captions_with_timing
 from merge_asl_clips import merge_asl_video_clips
-from utils.generate_asl_video import GenerationError, generate_with_report, lexicon_letters, lexicon_words
+from utils.generate_asl_video import (GenerationError, generate_with_report, lexicon_letters, lexicon_words,
+                                      text_to_gloss)
 from utils import aslytics_env
+from showcase import tiers as showcase_tiers
 
 REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
 
@@ -16,6 +18,10 @@ app.config['UPLOAD_FOLDER'] = os.path.join(REPO_ROOT, 'static', 'videos')
 # Videos for the sentence page. Git ignores this folder (see its .gitignore),
 # so trying sentences never touches the tracked sample videos above.
 SENTENCE_FOLDER = os.path.join(REPO_ROOT, 'static', 'sentences')
+# Videos for the showcase page; also ignored by git. The research-preview tier
+# is ASL Citizen, which may not be distributed: run this page on the laptop and
+# show it from there.
+SHOWCASE_FOLDER = os.path.join(REPO_ROOT, 'static', 'showcase')
 
 
 def sign_credit():
@@ -122,6 +128,42 @@ def sentence_page():
     except GenerationError as error:
         context["error"] = str(error)
     return render_template('sentence.html', **context)
+
+@app.route('/showcase', methods=['GET', 'POST'])
+def showcase_page():
+    """One sentence, signed by each lexicon side by side (showcase/tiers.py)."""
+    tiers = showcase_tiers.tiers()
+    context = {"tiers": tiers, "examples": showcase_tiers.SENTENCES,
+               "research": any(tier.research_only for tier in tiers)}
+    sentence = request.form.get('sentence', '').strip() if request.method == 'POST' else ''
+    if not sentence or not tiers:
+        return render_template('showcase.html', **context)
+
+    context["sentence"] = sentence
+    try:
+        glosses = text_to_gloss(sentence)
+    except GenerationError as error:
+        context["error"] = str(error)
+        return render_template('showcase.html', **context)
+    context["glosses"] = glosses
+    os.makedirs(SHOWCASE_FOLDER, exist_ok=True)
+    stem = hashlib.sha1(sentence.encode("utf-8")).hexdigest()[:16]
+    results = []
+    for tier in tiers:
+        result = {"tier": tier, "signed": [], "spelled": [], "skipped": [], "video": None}
+        if glosses:
+            try:
+                report = generate_with_report(sentence, f"{stem}_{tier.slug}.mp4", glosses=glosses,
+                                              skip_missing=True, publish_dir=SHOWCASE_FOLDER,
+                                              lexicon_dir=tier.path)
+                result.update(signed=report["glosses"], spelled=report["spelled"],
+                              skipped=report["skipped"], video=f"showcase/{stem}_{tier.slug}.mp4")
+            except GenerationError:
+                result["skipped"] = list(dict.fromkeys(glosses))
+        results.append(result)
+    context["results"] = results
+    return render_template('showcase.html', **context)
+
 
 @app.route('/process', methods=['POST'])
 def process_caption_api():

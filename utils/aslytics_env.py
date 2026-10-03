@@ -109,10 +109,12 @@ class Runner:
     description: str
 
     def run(self, script: Path, *args: str, stdin: Optional[str] = None,
-            timeout: Optional[float] = None) -> subprocess.CompletedProcess:
+            timeout: Optional[float] = None,
+            env: Optional[Dict[str, str]] = None) -> subprocess.CompletedProcess:
+        """env, if given, is added to this process's environment for the child."""
         return subprocess.run([*self.command, str(script), *args], input=stdin,
                               capture_output=True, text=True, timeout=timeout,
-                              cwd=str(REPO_ROOT))
+                              cwd=str(REPO_ROOT), env={**os.environ, **env} if env else None)
 
 
 def runner(half: str) -> Runner:
