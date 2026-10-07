@@ -50,12 +50,14 @@ and ASL-LEX as CC BY 4.0, and they are wrong.
 
 | Site | What its terms say | May we scrape? |
 |---|---|---|
-| Handspeak | "Any duplication or reproduction, distribution … without the required prior written consent … is prohibited" | ❌ |
-| Lifeprint / ASLU | "you do not have permission to use ASLU materials to make apps of any kind" | ❌ |
+| Handspeak | "Any duplication or reproduction, distribution … without the required prior written consent … is prohibited" | Permission by call, 2026-10-06, written note pending; non-commercial until it says otherwise. Not fetched: the site turns automated readers away, so ask for the files |
+| Lifeprint / ASLU | "you do not have permission to use ASLU materials to make apps of any kind" | Permission by call, 2026-10-06, written note pending; non-commercial. Only the GIFs on lifeprint.com are fetched; its videos are on YouTube |
 | Signing Savvy | may not "reproduce, publish, transmit, distribute, display, modify, create derivative works" | ✅ for ASLytics, non-commercial: permission granted 2026-10-03 |
-| Spread the Sign | "It is not allowed to download or use our videos or data without permission" | ❌ |
+| Spread the Sign | "It is not allowed to download or use our videos or data without permission" | ✅ for ASLytics, non-commercial: permission by call, 2026-10-06, written note pending |
 | ASL-LEX videos | "solely for personal searches" | ❌ |
-| ASL Signbank | CC BY-NC-SA 4.0, reuse invited | ✅ non-commercial, ask before bulk download |
+| ASL Signbank | CC BY-NC-SA 4.0, reuse invited | ✅ non-commercial, share-alike. Fetched from the copies on SignASL.org, missing words only |
+| SignASL.org | No terms of its own found. Hosts other owners' videos (StartASL, ASL Signbank, ASLSearch, ASL Bricks, YouTube and others) | Permission by call, 2026-10-06, covers its site, not the owners' videos. Only the ASL Signbank clips are taken |
+| ASLCORE (RIT/NTID) | "© Rochester Institute of Technology. All rights reserved"; 10 academic subjects, videos on Vimeo | Permission by call, 2026-10-06, written note pending; non-commercial. Not fetched: ask RIT/NTID for the files |
 
 ## What this means for us
 
@@ -63,11 +65,12 @@ and ASL-LEX as CC BY 4.0, and they are wrong.
   signs cut from 2M-Flores-ASL / FLEURS-ASL sentences (share-alike).
   NVIDIA ASL 1000 if NVIDIA confirms. ASL Citizen and Signing Savvy only if
   they extend their permission to commercial use.
-- **Community demo, non-commercial:** ASL Citizen and Signing Savvy, both by
-  permission for non-commercial use (DATA_LICENSES.md §0). ASL Signbank could
-  be added too (ask first).
-- **Never:** dictionary sites that have not given permission, WLASL, MS-ASL,
-  YouTube-sourced sets.
+- **Community demo, non-commercial:** ASL Citizen and Signing Savvy by written
+  permission; SpreadTheSign, Lifeprint, Handspeak and ASLCORE by permission
+  given on calls, written notes pending; ASL Signbank under its own licence
+  (DATA_LICENSES.md §0, showcase/sources.py).
+- **Never:** dictionary sites that have not given permission, the other owners'
+  videos on SignASL.org, WLASL, MS-ASL, YouTube-sourced sets.
 - **Our own dataset is the way out.** Paid, consented Deaf signers, recorded
   for the words people actually caption, owned under a licence we choose.
   [COVERAGE.md](COVERAGE.md) shows 1,000 well-chosen signs would cover more

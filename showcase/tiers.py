@@ -3,8 +3,8 @@
 A tier is a name and a lexicon folder. By default:
 
   Prototype   lexicon/popsign    PopSign (CC BY 4.0): what a product may use now
-  Community   lexicon/community  Signing Savvy + ASL Citizen + PopSign (+ letters),
-                                 built by showcase/stack_lexicons.py; non-commercial
+  Community   lexicon/community  every source in showcase/sources.py (+ letters),
+                                 built by showcase/build_all.py; non-commercial
 
 Set ASLYTICS_SHOWCASE_TIERS to compare others, e.g.
     ASLYTICS_SHOWCASE_TIERS="Prototype=lexicon/popsign;Community=lexicon/community"
@@ -23,7 +23,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 DEFAULT_TIERS = [
     ("Prototype: PopSign", "lexicon/popsign"),
-    ("Community preview: Signing Savvy + ASL Citizen + PopSign", "lexicon/community"),
+    ("Community preview: every source we may use", "lexicon/community"),
 ]
 
 # Everyday sentences of the kind captions carry: appointments, weather,

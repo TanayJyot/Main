@@ -41,10 +41,35 @@ owner's summary of 2026-10-03.
 | **ASL Citizen** (Microsoft Research) | 2026-10-03, by email | **Non-commercial use** of the dataset | Cite the dataset (see `showcase/citizen.py` ATTRIBUTION) | `lexicon/aslc`, the community showcase |
 | **Signing Savvy** | 2026-10-03, by email | **Non-commercial use**, including fetching ("scraping") its sign videos | "Signs from Signing Savvy (signingsavvy.com), used with permission" | `lexicon/signingsavvy`, the community showcase |
 
+Permissions given on calls, written notes to follow. Recorded from the owner's
+summary of 2026-10-06: every site named below has given full access, most of
+them on a call, and will send a written note shortly. **Each is treated as non-commercial
+until its written note states the scope**; paste the notes below as they arrive.
+
+| Source | Granted | Scope, as recorded | Credit | Where it is used |
+|---|---|---|---|---|
+| **Handspeak** | 2026-10-06, by call; note pending | Non-commercial until the note says otherwise | "Signs from Handspeak (handspeak.com), used with permission" | `lexicon/handspeak`, once Handspeak sends files (its site turns automated readers away, so nothing is fetched) |
+| **SpreadTheSign** | 2026-10-06, by call; note pending | Non-commercial until the note says otherwise | "Signs from SpreadTheSign (spreadthesign.com, European Sign Language Centre), used with permission" | `lexicon/spreadthesign`, the community showcase |
+| **Lifeprint / ASL University** | 2026-10-06, by call; note pending | Non-commercial until the note says otherwise | "Signs from Lifeprint / ASL University (lifeprint.com, Dr. Bill Vicars), used with permission" | `lexicon/lifeprint` (the GIFs on lifeprint.com only; its YouTube videos are not downloaded) |
+| **ASLCORE** (RIT/NTID) | 2026-10-06, by call; note pending | Non-commercial until the note says otherwise | "Signs from ASLCORE (aslcore.org, RIT/NTID), used with permission" | `lexicon/aslcore`, once RIT/NTID sends files (the videos are on Vimeo) |
+| **SignASL.org** | 2026-10-06, by call; note pending | Access to its site | see below | `lexicon/signbank` |
+
+SignASL.org needs care. It records no signs of its own: every video on it
+belongs to someone else (StartASL, ASL Signbank, ASLSearch, ASL Bricks,
+Elemental ASL Concepts, Sign Language Student, Marie Katzenbach School, YouTube
+uploaders and others). SignASL's permission lets us read its site; it cannot
+license those owners' videos. So only the **ASL Signbank** clips are taken,
+because Signbank's own licence (CC BY-NC-SA 4.0) already allows non-commercial
+reuse with credit, with anything made from them shared under the same licence.
+Any other owner has to be asked directly.
+
+A sixth site was mentioned ("SL dictionary", separate from ASLCORE) and is not
+recorded here because it has not been named yet.
+
 What this means:
 
-- Both may be shown in community sessions, demos and research write-ups, with
-  credit. Neither may go into a paid product, an ad or a sales pitch. Every
+- All of these may be shown in community sessions, demos and research write-ups, with
+  credit. None may go into a paid product, an ad or a sales pitch. Every
   page and video built from them says "non-commercial use only".
 - The commercial product still uses PopSign only (CC BY 4.0) until commercial
   permission or a dataset of our own exists.
@@ -55,6 +80,16 @@ What this means:
 Exact wording, ASL Citizen: [paste]
 
 Exact wording, Signing Savvy: [paste]
+
+Written note, Handspeak: [paste when it arrives]
+
+Written note, SpreadTheSign: [paste when it arrives]
+
+Written note, Lifeprint: [paste when it arrives]
+
+Written note, ASLCORE: [paste when it arrives]
+
+Written note, SignASL.org: [paste when it arrives]
 
 ## 1. Inventory
 

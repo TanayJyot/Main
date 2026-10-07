@@ -31,8 +31,10 @@
 <body>
   <h1>What a bigger sign dataset makes possible</h1>
   {% if restricted %}
-    <p class="warn">Non-commercial use only. Signs from Signing Savvy and ASL Citizen are used with
-       their permission for non-commercial purposes; credit them wherever these videos are shown.</p>
+    <p class="warn">Non-commercial use only. Signs from
+       {% for tier in tiers if tier.non_commercial %}{{ tier.source }}{% if not loop.last %}; {% endif %}{% endfor %}
+       are used by permission or under non-commercial licences; credit them wherever these videos
+       are shown.</p>
   {% endif %}
 
   {% if not tiers %}

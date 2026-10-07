@@ -19,8 +19,8 @@ app.config['UPLOAD_FOLDER'] = os.path.join(REPO_ROOT, 'static', 'videos')
 # so trying sentences never touches the tracked sample videos above.
 SENTENCE_FOLDER = os.path.join(REPO_ROOT, 'static', 'sentences')
 # Videos for the showcase page; also ignored by git. The community tier uses
-# Signing Savvy and ASL Citizen, which we may use for non-commercial purposes
-# only (DATA_LICENSES.md).
+# sources we may use for non-commercial purposes only (showcase/sources.py,
+# DATA_LICENSES.md).
 SHOWCASE_FOLDER = os.path.join(REPO_ROOT, 'static', 'showcase')
 
 

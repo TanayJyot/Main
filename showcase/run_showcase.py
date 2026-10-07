@@ -137,9 +137,10 @@ def gallery(report, tiers) -> str:
                      f"<ul>{lines}</ul></section>")
     credits = "".join(f"<li><b>{esc(t.name)}</b>: {esc(t.source)} ({esc(t.license)})</li>" for t in tiers)
     restricted = any(t.non_commercial for t in tiers)
-    warning = ("<p class=warn>Non-commercial use only. Signs from Signing Savvy and ASL Citizen are used "
-               "with their permission for non-commercial purposes; credit them wherever these videos are "
-               "shown.</p>") if restricted else ""
+    names = "; ".join(dict.fromkeys(t.source for t in tiers if t.non_commercial and t.source))
+    warning = (f"<p class=warn>Non-commercial use only. Signs from {esc(names or 'the sources below')} are "
+               "used by permission or under non-commercial licences; credit them wherever these videos "
+               "are shown.</p>") if restricted else ""
     return f"""<!doctype html>
 <html lang=en><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
 <title>ASLytics Showcase</title>
