@@ -268,6 +268,19 @@ def test_report_counts_words_per_source_and_lists_gaps():
         assert "Ask Handspeak to send the video files" in text
 
 
+
+def test_build_all_sites_limits_the_fetch():
+    from types import SimpleNamespace
+    everything = [s.key for s in sources.fetched()]
+    assert build_all.fetch_keys(SimpleNamespace(sites="")) == everything
+    assert build_all.fetch_keys(SimpleNamespace(sites="signingsavvy")) == ["signingsavvy"]
+    try:
+        build_all.fetch_keys(SimpleNamespace(sites="signingsavvy,handspeak"))
+    except SystemExit as error:
+        assert "handspeak" in str(error)
+    else:
+        raise AssertionError("a site that is not fetched must be refused")
+
 if __name__ == "__main__":
     failed = 0
     for name, test in sorted(globals().items()):

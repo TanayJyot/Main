@@ -175,6 +175,20 @@ def have_words(run: Run) -> Path:
     return path
 
 
+def fetch_keys(args) -> List[str]:
+    """The sites to fetch: --sites if given (each must be a fetched source),
+    else every source sources.py marks as fetched. Lets a run be limited to
+    the sites whose permission has been confirmed."""
+    allowed = [s.key for s in sources.fetched()]
+    if not getattr(args, "sites", None):
+        return allowed
+    keys = [k.strip() for k in args.sites.split(",") if k.strip()]
+    unknown = [k for k in keys if k not in allowed]
+    if unknown:
+        raise SystemExit(f"--sites: not fetchable sources: {', '.join(unknown)} (choose from {', '.join(allowed)})")
+    return keys
+
+
 def start_fetch(run: Run, args, site_keys: List[str], log_name: str) -> subprocess.Popen:
     argv = [sys.executable, str(HERE / "fetch_sites.py"), "--sites", ",".join(site_keys),
             "--have-file", str(have_words(run)), "--delay", str(args.delay)]
@@ -191,7 +205,7 @@ def aslc(run: Run, args) -> str:
         if code := run.script("showcase/citizen.py", command, *extra):
             raise RuntimeError(f"citizen.py {command} exited with {code}")
         if command == "fetch" and run.background is None and "fetch" in args.steps:
-            run.background = start_fetch(run, args, [s.key for s in sources.fetched()], "fetch_sites.log")
+            run.background = start_fetch(run, args, fetch_keys(args), "fetch_sites.log")
     if code := run.script("showcase/citizen.py", "export", "--out", sources.BY_KEY["aslc"].lexicon):
         raise RuntimeError(f"citizen.py export exited with {code}")
     return f"{poses(sources.BY_KEY['aslc'].lexicon)} words"
@@ -199,10 +213,10 @@ def aslc(run: Run, args) -> str:
 
 def fetch(run: Run, args) -> str:
     if run.background is None:
-        run.background = start_fetch(run, args, [s.key for s in sources.fetched()], "fetch_sites.log")
+        run.background = start_fetch(run, args, fetch_keys(args), "fetch_sites.log")
     run.log("waiting for the dictionary sites (progress in .work/build_all/fetch_sites.log)")
     code = run.background.wait()
-    counts = {s.key: clips(s.videos) for s in sources.fetched()}
+    counts = {key: clips(sources.BY_KEY[key].videos) for key in fetch_keys(args)}
     detail = ", ".join(f"{key} {count}" for key, count in counts.items())
     if code:
         raise RuntimeError(f"fetch_sites.py exited with {code}; videos so far: {detail}")
@@ -232,7 +246,7 @@ def convert(run: Run, args) -> str:
     # Second, short fetch: words whose sign from Signing Savvy or ASL Citizen
     # could not be used (not converted, or hands barely tracked) are asked of
     # the gap-filling sites. Words already looked up are not asked again.
-    gap_sites = [s.key for s in sources.fetched() if s.key not in fetch_sites.FULL_SITES]
+    gap_sites = [key for key in fetch_keys(args) if key not in fetch_sites.FULL_SITES]
     if gap_sites and "fetch" in args.steps:
         have = [str(sources.BY_KEY[k].lexicon) for k in ("signingsavvy", "aslc", "popsign")
                 if poses(sources.BY_KEY[k].lexicon)]
@@ -351,6 +365,8 @@ def main() -> int:
     parser.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 2),
                         help="MediaPipe processes")
     parser.add_argument("--delay", type=float, default=1.0, help="Seconds between requests to one site")
+    parser.add_argument("--sites", default="",
+                        help="Comma-separated sites to fetch (default: every fetched source in sources.py)")
     parser.add_argument("--no-install", action="store_true", help="Do not pip install missing packages")
     parser.add_argument("--status", action="store_true", help="Print the last run's status and stop")
     args = parser.parse_args()
