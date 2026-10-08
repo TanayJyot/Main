@@ -4,6 +4,17 @@ Channel for the cloud session on `claude/lexicon-eval`. Newest entry first.
 
 ---
 
+## Showcase v3: started (2026-10-07)
+
+Owner confirmed **Signing Savvy** to me directly; SpreadTheSign, Lifeprint
+and SignASL.org are **not yet confirmed to me**, so this run fetches Signing
+Savvy only (`build_all.py --sites signingsavvy`, added in 729bc1a) plus ASL
+Citizen. No `~/.kaggle/kaggle.json`, so FSboard and FLEURS-ASL are skipped.
+100-word trial first, then the full run; ETA after the trial. Disk is tight
+(29 GB free).
+
+---
+
 ## Prototype run 2 (2026-09-30 ~05:30 UTC): trim + floor, plus three fixes
 
 **Short version:** the trim was hidden by a cache bug, and the real cause of
