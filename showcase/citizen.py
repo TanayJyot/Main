@@ -213,10 +213,21 @@ def _convert_one(source: str, target: str):
         return f"{source}\t{type(error).__name__}: {error}"
 
 
-def convert(data: Path = DATA, workers: int = max(1, (os.cpu_count() or 2) - 2)) -> int:
+def convert_todo(data: Path, chosen: Dict[str, List[str]]):
+    """(video, pose) pairs still to convert: only the chosen candidates that
+    are on disk. Anything else in videos/ (e.g. clips copied in from an
+    earlier, differently-capped run) is left alone, not converted."""
+    wanted = {name for clips in chosen.values() for name in clips}
+    todo = [(v, data / "pose" / (v.stem + ".pose"))
+            for v in sorted((data / "videos").glob("*.mp4")) if v.name in wanted]
+    return [(s, t) for s, t in todo if not t.exists()]
+
+
+def convert(data: Path = DATA, workers: int = max(1, (os.cpu_count() or 2) - 2),
+            max_signers: int = MAX_SIGNERS) -> int:
     """mp4 -> .pose with MediaPipe Holistic (mediapipe==0.10.21, as for PopSign)."""
-    todo = [(v, data / "pose" / (v.stem + ".pose")) for v in sorted((data / "videos").glob("*.mp4"))]
-    todo = [(s, t) for s, t in todo if not t.exists()]
+    _, chosen = plan(data, max_signers)
+    todo = convert_todo(data, chosen)
     print(f"{len(todo)} clips to convert with {workers} workers", flush=True)
     failed = []
     with ProcessPoolExecutor(workers) as pool:
@@ -331,7 +342,7 @@ def main() -> int:
     if args.command == "fetch":
         fetch(args.data, args.max_signers)
     elif args.command == "convert":
-        convert(args.data, args.workers)
+        convert(args.data, args.workers, args.max_signers)
     elif args.command == "words":
         table, chosen = plan(args.data, args.max_signers)
         print(f"{len(table)} words from {len(set(table.values()))} signs "

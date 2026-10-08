@@ -236,6 +236,20 @@ def test_video_lexicon_takes_each_words_first_variant():
         assert (out / ".gitignore").read_text() == "*\n"
 
 
+
+def test_citizen_converts_only_chosen_clips():
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        data = Path(tmp)
+        (data / "videos").mkdir()
+        (data / "pose").mkdir()
+        for name in ("a.mp4", "b.mp4", "stray.mp4", "done.mp4"):
+            (data / "videos" / name).write_bytes(b"x")
+        (data / "pose" / "done.pose").write_bytes(b"x")
+        todo = citizen.convert_todo(data, {"DOG": ["a.mp4", "done.mp4"], "CAT": ["b.mp4", "absent.mp4"]})
+        assert sorted(s.name for s, _ in todo) == ["a.mp4", "b.mp4"]
+
+
 if __name__ == "__main__":
     tests = [value for name, value in sorted(globals().items()) if name.startswith("test_")]
     for test in tests:
